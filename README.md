@@ -1,4 +1,4 @@
-# 🛒 SmartStore POS System
+#SmartStore POS System
 
 A full-stack Enterprise Point of Sale (POS) system built with **Spring Boot** and **MySQL**. This application manages inventory, processes sales, and generates dynamic professional invoices with "Amount in Words" conversion.
 
