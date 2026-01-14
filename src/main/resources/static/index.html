@@ -149,7 +149,10 @@
     </div>
 
     <script>
-        const API = 'http://localhost:8090/api';
+        // --- 🚨 THE MAGIC FIX IS HERE 🚨 ---
+        // We changed this from 'http://localhost:8090/api' to '/api'
+        const API = '/api'; 
+        
         let products = [], cart = [], lastSaleId = null, myChart = null;
         let html5QrcodeScanner = null;
         
@@ -255,29 +258,18 @@
         function deleteProduct(id) { if(confirm("Are you sure?")) fetch(`${API}/products/${id}`, {method:'DELETE'}).then(loadInventory); }
         function renderDrop() { document.getElementById('saleProductSelect').innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} ($${p.price})</option>`).join(''); }
         
-        // --- UPDATED ADD TO CART LOGIC (With Qty Fix) ---
         function addToCart(pidDirect=null) { 
             const pid = pidDirect || parseInt(document.getElementById('saleProductSelect').value);
-            
-            // Read quantity from box. If scanner used, force 1. If button used, use box value.
             const qtyInput = parseInt(document.getElementById('saleQty').value);
             const qtyToAdd = pidDirect ? 1 : (qtyInput > 0 ? qtyInput : 1);
-
             const p = products.find(x => x.id === pid);
             if(!p) return alert("Product not found");
-            
-            // Safety: Check total stock
             if(p.stock < qtyToAdd) return alert(`Not enough stock! Only ${p.stock} left.`);
-            
             const discount = p.discount || 0;
             const finalPrice = p.price - (p.price * discount / 100);
-            
             const item = cart.find(i => i.productId === pid);
-            
             if(item) {
-                if ((item.quantity + qtyToAdd) > p.stock) {
-                    return alert(`Stock Limit Reached! You already have ${item.quantity} in cart.`);
-                }
+                if ((item.quantity + qtyToAdd) > p.stock) return alert(`Stock Limit Reached! You already have ${item.quantity} in cart.`);
                 item.quantity += qtyToAdd;
             } else {
                 cart.push({productId: pid, name: p.name, price: finalPrice, quantity: qtyToAdd});
@@ -285,7 +277,6 @@
             renderCart();
         }
 
-        // --- NEW DELETE FROM CART LOGIC ---
         function removeFromCart(index) {
             cart.splice(index, 1); 
             renderCart();
@@ -307,7 +298,6 @@
             } 
         }
 
-        // --- UPDATED CART RENDER (With Delete Button) ---
         function renderCart() { 
             document.getElementById('cartTable').innerHTML = cart.map((i, index) => `
                 <tr>
