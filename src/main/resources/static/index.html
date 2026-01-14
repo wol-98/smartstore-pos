@@ -112,7 +112,7 @@
             <button onclick="addToCart()" style="background: var(--accent);">Add to Cart</button>
             
             <table style="margin-top:15px;">
-                <thead><tr><th>Item</th><th>Qty</th><th>Total</th></tr></thead>
+                <thead><tr><th>Item</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead>
                 <tbody id="cartTable"></tbody>
             </table>
             
@@ -255,18 +255,39 @@
         function deleteProduct(id) { if(confirm("Are you sure?")) fetch(`${API}/products/${id}`, {method:'DELETE'}).then(loadInventory); }
         function renderDrop() { document.getElementById('saleProductSelect').innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} ($${p.price})</option>`).join(''); }
         
+        // --- UPDATED ADD TO CART LOGIC (With Qty Fix) ---
         function addToCart(pidDirect=null) { 
             const pid = pidDirect || parseInt(document.getElementById('saleProductSelect').value);
-            const p = products.find(x=>x.id===pid);
+            
+            // Read quantity from box. If scanner used, force 1. If button used, use box value.
+            const qtyInput = parseInt(document.getElementById('saleQty').value);
+            const qtyToAdd = pidDirect ? 1 : (qtyInput > 0 ? qtyInput : 1);
+
+            const p = products.find(x => x.id === pid);
             if(!p) return alert("Product not found");
-            if(p.stock < 1) return alert("Out of Stock!");
+            
+            // Safety: Check total stock
+            if(p.stock < qtyToAdd) return alert(`Not enough stock! Only ${p.stock} left.`);
             
             const discount = p.discount || 0;
             const finalPrice = p.price - (p.price * discount / 100);
             
-            const item = cart.find(i=>i.productId===pid);
-            if(item) item.quantity += 1;
-            else cart.push({productId:pid, name:p.name, price:finalPrice, quantity:1});
+            const item = cart.find(i => i.productId === pid);
+            
+            if(item) {
+                if ((item.quantity + qtyToAdd) > p.stock) {
+                    return alert(`Stock Limit Reached! You already have ${item.quantity} in cart.`);
+                }
+                item.quantity += qtyToAdd;
+            } else {
+                cart.push({productId: pid, name: p.name, price: finalPrice, quantity: qtyToAdd});
+            }
+            renderCart();
+        }
+
+        // --- NEW DELETE FROM CART LOGIC ---
+        function removeFromCart(index) {
+            cart.splice(index, 1); 
             renderCart();
         }
 
@@ -286,14 +307,25 @@
             } 
         }
 
+        // --- UPDATED CART RENDER (With Delete Button) ---
         function renderCart() { 
-            document.getElementById('cartTable').innerHTML = cart.map(i=>`<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">$${(i.price*i.quantity).toFixed(2)}</td></tr>`).join('');
+            document.getElementById('cartTable').innerHTML = cart.map((i, index) => `
+                <tr>
+                    <td>${i.name}</td>
+                    <td style="text-align:center;">${i.quantity}</td>
+                    <td style="text-align:right;">$${(i.price * i.quantity).toFixed(2)}</td>
+                    <td style="text-align:center;">
+                        <button class="btn-delete" onclick="removeFromCart(${index})" style="width: 30px; height: 30px; padding: 0;">
+                            <i class="fa-solid fa-trash" style="font-size: 0.8em;"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
             document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+(b.price*b.quantity),0).toFixed(2);
         }
 
         function checkout() { 
             const cashier = document.getElementById('cashierName').value;
-            // Capture NEW Fields
             const method = document.getElementById('payMethod').value;
             const status = document.getElementById('payStatus').value;
 
@@ -304,8 +336,8 @@
                 body:JSON.stringify({
                     items:cart, 
                     cashierName: cashier,
-                    paymentMethod: method, // Send to backend
-                    status: status         // Send to backend
+                    paymentMethod: method, 
+                    status: status 
                 })
             })
             .then(r=>r.json()).then(d=>{ 

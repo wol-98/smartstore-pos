@@ -14,7 +14,7 @@ public class Product {
     
     private String name;
     
-    // 5 Ps Fields
+    // 5 Ps Fields 
     private String brand;
     private String category;
     private Double price;

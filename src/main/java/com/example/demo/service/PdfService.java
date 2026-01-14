@@ -77,22 +77,35 @@ public class PdfService {
 
             document.add(metaTable);
 
-            // --- ITEMS TABLE ---
-            PdfPTable table = new PdfPTable(4); 
+            // --- ITEMS TABLE (UPDATED FOR 5 COLUMNS) ---
+            PdfPTable table = new PdfPTable(5); 
             table.setWidthPercentage(100);
-            table.setWidths(new float[]{1f, 4f, 1.5f, 2f});
+            // S/No(1), Description(4), Unit Price(2), Qty(1.5), Total(2)
+            table.setWidths(new float[]{1f, 4f, 2f, 1.5f, 2f});
             table.setSpacingBefore(5);
 
-            table.addCell(createStyledHeader("#", tableHeaderFont));
+            // HEADERS (UPDATED)
+            table.addCell(createStyledHeader("S/No.", tableHeaderFont));
             table.addCell(createStyledHeader("Description", tableHeaderFont));
+            table.addCell(createStyledHeader("Unit Price", tableHeaderFont)); // New Column
             table.addCell(createStyledHeader("Qty", tableHeaderFont));
             table.addCell(createStyledHeader("Total ($)", tableHeaderFont));
 
             int i = 1;
             for (SaleItem item : sale.getItems()) {
+                // 1. S/No
                 table.addCell(createCell(String.valueOf(i++), bodyFont, Element.ALIGN_CENTER));
+                
+                // 2. Description
                 table.addCell(createCell(item.getProductName(), bodyFont, Element.ALIGN_LEFT));
+                
+                // 3. Unit Price (New)
+                table.addCell(createCell(df.format(item.getPrice()), bodyFont, Element.ALIGN_RIGHT));
+
+                // 4. Qty
                 table.addCell(createCell(String.valueOf(item.getQuantity()), bodyFont, Element.ALIGN_CENTER));
+                
+                // 5. Total
                 BigDecimal subtotal = item.getPrice().multiply(new BigDecimal(item.getQuantity()));
                 table.addCell(createCell(df.format(subtotal), bodyFont, Element.ALIGN_RIGHT));
             }
@@ -107,14 +120,14 @@ public class PdfService {
             summaryTable.addCell(createSummaryCell(df.format(sale.getTotalAmount()), boldFont));
             document.add(summaryTable);
             
-            // --- AMOUNT IN WORDS (THE NEW PART) ---
+            // --- AMOUNT IN WORDS ---
             document.add(new Paragraph(" "));
             String moneyString = convertToWords(sale.getTotalAmount().longValue());
             Paragraph words = new Paragraph("In Words: " + moneyString + " Dollars Only", 
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY));
             document.add(words);
 
-            // --- SYSTEM VALIDATION FOOTER (THE NEW PART) ---
+            // --- SYSTEM VALIDATION FOOTER ---
             document.add(new Paragraph(" "));
             document.add(new Chunk(ls));
             document.add(new Paragraph(" "));
@@ -125,7 +138,7 @@ public class PdfService {
 
             Paragraph footerMsg = new Paragraph("This is a computer-generated invoice.\n" +
                     "Returns: Within 7 days with original invoice.\n" +
-                    "Support: support@smartstore.com", footerFont);
+                    "Support: support@smartstore.com. \n"+ "Thank you for shopping with us!", footerFont);
             footerMsg.setAlignment(Element.ALIGN_CENTER);
             document.add(footerMsg);
 
