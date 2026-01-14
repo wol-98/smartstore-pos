@@ -43,9 +43,9 @@ public class ExcelService {
 
                 row.createCell(0).setCellValue(sale.getId());
                 
-                // SAFETY CHECK: Handle null dates to prevent crash
-                if (sale.getCreatedAt() != null) {
-                    row.createCell(1).setCellValue(sale.getCreatedAt().toString());
+                // FIX 1: Changed getCreatedAt() to getDate()
+                if (sale.getDate() != null) {
+                    row.createCell(1).setCellValue(sale.getDate().toString());
                 } else {
                     row.createCell(1).setCellValue("N/A");
                 }
@@ -53,7 +53,13 @@ public class ExcelService {
                 row.createCell(2).setCellValue(sale.getCashierName());
                 row.createCell(3).setCellValue(sale.getPaymentMethod());
                 row.createCell(4).setCellValue(sale.getStatus());
-                row.createCell(5).setCellValue(sale.getTotal().doubleValue());
+                
+                // FIX 2: Changed getTotal() to getTotalAmount()
+                if (sale.getTotalAmount() != null) {
+                    row.createCell(5).setCellValue(sale.getTotalAmount().doubleValue());
+                } else {
+                    row.createCell(5).setCellValue(0.0);
+                }
 
                 // Format the items list into a single string
                 StringBuilder itemsStr = new StringBuilder();
