@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <title>SmartStore Manager Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script> 
+    
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> 
+    
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* --- MODERN SLATE THEME --- */
@@ -44,8 +46,11 @@
         .stock-low { background: #ffebee; color: #c62828; }
         .btn-edit { background: var(--warning); width: 35px; height: 35px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 5px; padding: 0;}
         .btn-delete { background: var(--danger); width: 35px; height: 35px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; padding: 0;}
-        .btn-scan { background: #8e44ad; margin-bottom: 10px; }
-        #reader { width: 100%; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; overflow: hidden; }
+        
+        /* SCANNER STYLES */
+        .btn-scanner { background: #8e44ad; margin-bottom: 10px; }
+        #reader { width: 100%; margin-bottom: 15px; border: 2px solid #6f42c1; border-radius: 8px; overflow: hidden; }
+        
         .btn-logout { background-color: var(--danger); width: auto; padding: 8px 15px; font-size: 0.9em; margin: 0;}
         .user-badge { background: white; padding: 8px 15px; border-radius: 20px; color: var(--primary); font-weight: bold; border: 1px solid #dcdde1; font-size: 0.9em; display:flex; align-items:center; gap:8px;}
         .header-controls { display:flex; gap:10px; align-items:center; }
@@ -102,9 +107,11 @@
 
         <div class="card">
             <h2 style="margin:0 0 15px 0; font-size:1.3em;"><i class="fa-solid fa-cash-register"></i> Billing Terminal</h2>
-            <button class="btn-scan" onclick="toggleScanner()"><i class="fa-solid fa-barcode"></i> Toggle Scanner</button>
-            <div id="reader" class="hidden"></div>
-
+            
+            <div id="reader" style="display:none;"></div>
+            <button class="btn-scanner" onclick="toggleScanner()" style="background: #9c27b0;">
+                <i class="fa-solid fa-camera"></i> Toggle Camera Scanner
+            </button>
             <div style="display:grid; grid-template-columns: 1fr auto; gap:10px;">
                 <select id="saleProductSelect"></select>
                 <input type="number" id="saleQty" value="1" style="width:70px;">
@@ -149,10 +156,7 @@
     </div>
 
     <script>
-        // --- 🚨 THE MAGIC FIX IS HERE 🚨 ---
-        // We changed this from 'http://localhost:8090/api' to '/api'
         const API = '/api'; 
-        
         let products = [], cart = [], lastSaleId = null, myChart = null;
         let html5QrcodeScanner = null;
         
@@ -160,6 +164,7 @@
             loadCurrentUser(); loadInventory(); loadDashboard(); 
         });
 
+        // --- DASHBOARD & USER FUNCTIONS ---
         function loadCurrentUser() {
             fetch('/api/me').then(res => res.json()).then(data => {
                 document.getElementById('currentUserDisplay').innerText = data.username;
@@ -198,6 +203,7 @@
             }
         }
 
+        // --- INVENTORY FUNCTIONS ---
         function loadInventory() { fetch(`${API}/products`).then(r=>r.json()).then(d=>{ products=d; renderInv(); renderDrop(); }); }
         
         function renderInv() { 
@@ -258,16 +264,29 @@
         function deleteProduct(id) { if(confirm("Are you sure?")) fetch(`${API}/products/${id}`, {method:'DELETE'}).then(loadInventory); }
         function renderDrop() { document.getElementById('saleProductSelect').innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} ($${p.price})</option>`).join(''); }
         
+        // --- CART & SCANNER FUNCTIONS ---
         function addToCart(pidDirect=null) { 
-            const pid = pidDirect || parseInt(document.getElementById('saleProductSelect').value);
+            let pid, p;
+            
+            // Logic to handle direct object pass (from Scanner) or ID pass
+            if (pidDirect && typeof pidDirect === 'object') {
+                p = pidDirect;
+                pid = p.id;
+            } else {
+                pid = pidDirect || parseInt(document.getElementById('saleProductSelect').value);
+                p = products.find(x => x.id === pid);
+            }
+
             const qtyInput = parseInt(document.getElementById('saleQty').value);
             const qtyToAdd = pidDirect ? 1 : (qtyInput > 0 ? qtyInput : 1);
-            const p = products.find(x => x.id === pid);
+            
             if(!p) return alert("Product not found");
             if(p.stock < qtyToAdd) return alert(`Not enough stock! Only ${p.stock} left.`);
+            
             const discount = p.discount || 0;
             const finalPrice = p.price - (p.price * discount / 100);
             const item = cart.find(i => i.productId === pid);
+            
             if(item) {
                 if ((item.quantity + qtyToAdd) > p.stock) return alert(`Stock Limit Reached! You already have ${item.quantity} in cart.`);
                 item.quantity += qtyToAdd;
@@ -282,20 +301,65 @@
             renderCart();
         }
 
-        function toggleScanner() { 
-            const reader = document.getElementById('reader'); 
-            if (reader.classList.contains('hidden')) { 
-                reader.classList.remove('hidden'); 
-                html5QrcodeScanner = new Html5Qrcode("reader"); 
-                html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => { 
-                    const id = parseInt(txt);
-                    const p = products.find(x => x.id === id);
-                    if(p) { addToCart(p.id); alert("Scanned: " + p.name); } 
-                    else { alert("Product ID " + txt + " not found!"); }
-                }, () => {}); 
-            } else { 
-                if(html5QrcodeScanner) html5QrcodeScanner.stop().then(() => reader.classList.add('hidden')); 
-            } 
+        // --- NEW WEBCAM SCANNER LOGIC ---
+        function toggleScanner() {
+            const readerDiv = document.getElementById('reader');
+
+            if (readerDiv.style.display === 'none') {
+                // 1. SHOW CAMERA
+                readerDiv.style.display = 'block';
+                
+                // 2. Configure Scanner
+                html5QrcodeScanner = new Html5QrcodeScanner(
+                    "reader", 
+                    { fps: 10, qrbox: 250, aspectRatio: 1.0 }, 
+                    /* verbose= */ false
+                );
+
+                // 3. Start Scanning
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                
+            } else {
+                // 4. HIDE CAMERA
+                if (html5QrcodeScanner) {
+                    html5QrcodeScanner.clear().then(_ => {
+                        readerDiv.style.display = 'none';
+                    }).catch(error => {
+                        console.error("Failed to clear scanner", error);
+                    });
+                }
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Scan result: ${decodedText}`);
+
+            // Try to find product by Name (QR) OR by ID (if barcode matches ID)
+            const foundProduct = products.find(p => 
+                p.name.toLowerCase() === decodedText.toLowerCase() || 
+                p.id == decodedText
+            );
+
+            if (foundProduct) {
+                // Audio Beep
+                let beep = new Audio('https://www.soundjay.com/button/beep-07.wav');
+                beep.play().catch(e => console.log("Audio play failed: user interaction needed first"));
+
+                // Add to Cart
+                addToCart(foundProduct); 
+                
+                alert(`✅ Found: ${foundProduct.name}\nPrice: $${foundProduct.price}`);
+                
+                // Pause briefly
+                html5QrcodeScanner.pause(); 
+                setTimeout(() => html5QrcodeScanner.resume(), 1500); 
+            } else {
+                console.log("Scanned item not in database: " + decodedText);
+            }
+        }
+
+        function onScanFailure(error) {
+            // console.warn(`Code scan error = ${error}`);
         }
 
         function renderCart() { 
@@ -314,6 +378,7 @@
             document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+(b.price*b.quantity),0).toFixed(2);
         }
 
+        // --- CHECKOUT LOGIC ---
         function checkout() { 
             const cashier = document.getElementById('cashierName').value;
             const method = document.getElementById('payMethod').value;
