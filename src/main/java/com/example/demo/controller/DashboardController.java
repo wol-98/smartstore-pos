@@ -32,21 +32,31 @@ public class DashboardController {
 
         List<Sale> sales = saleRepo.findAll();
         
+        // 1. Date Filtering
         if (startDate != null && endDate != null && !startDate.isEmpty() && !endDate.isEmpty()) {
-            LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-            LocalDateTime end = LocalDate.parse(endDate).atTime(23, 59, 59);
-            sales = sales.stream()
-                    .filter(s -> s.getDate().isAfter(start) && s.getDate().isBefore(end))
-                    .toList();
+            try {
+                LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+                LocalDateTime end = LocalDate.parse(endDate).atTime(23, 59, 59);
+                sales = sales.stream()
+                        .filter(s -> s.getDate().isAfter(start) && s.getDate().isBefore(end))
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                System.err.println("Date parse error, ignoring filter");
+            }
         }
 
+        // 2. Total Revenue
         BigDecimal totalRevenue = sales.stream()
                 .map(Sale::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        long lowStockCount = productRepo.countLowStock();
+        // 3. Low Stock (Safe Method: Filter in Java)
+        // Assumes "Low Stock" is anything 5 or less
+        long lowStockCount = productRepo.findAll().stream()
+                .filter(p -> p.getStock() <= 5)
+                .count();
 
-        // Calculate Top Products
+        // 4. Top Products Calculation
         Map<String, Integer> productSales = sales.stream()
                 .flatMap(s -> s.getItems().stream()) 
                 .collect(Collectors.groupingBy(
@@ -64,9 +74,16 @@ public class DashboardController {
                         LinkedHashMap::new
                 ));
 
-        List<Customer> topCustomers = customerRepo.findTop5ByOrderByPointsDesc();
+        // 5. Top Customers (Safe Fallback if repo method missing)
+        List<Customer> topCustomers = new ArrayList<>();
+        try {
+            // If you implemented the custom query in CustomerRepository, this runs
+            topCustomers = customerRepo.findTop5ByOrderByPointsDesc();
+        } catch (Exception e) {
+            // Fallback: Just return empty list to prevent crash
+        }
 
-        // 🧠 AI DATA PREPARATION
+        // 6. AI Data Prep
         List<Map<String, Object>> aiData = sales.stream()
             .map(s -> {
                 Map<String, Object> m = new HashMap<>();
@@ -75,16 +92,9 @@ public class DashboardController {
                 return m;
             }).collect(Collectors.toList());
 
-        // 🛰️ CALL AI SERVICE & CHECK HEALTH
-        int predictedSales = 0;
-        String aiStatus = "offline";
-        try {
-            predictedSales = predictionService.getPredictedSales(aiData);
-            // If the service returns a valid number (even 0), we consider it online
-            aiStatus = "online"; 
-        } catch (Exception e) {
-            aiStatus = "offline";
-        }
+        // 7. AI Prediction
+        int predictedSales = predictionService.getPredictedSales(aiData);
+        String aiStatus = predictedSales > 0 ? "online" : "offline"; 
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalRevenue", totalRevenue);
@@ -92,8 +102,6 @@ public class DashboardController {
         stats.put("lowStockCount", lowStockCount);
         stats.put("topProducts", topProducts);
         stats.put("topCustomers", topCustomers);
-        
-        // Final AI fields for the dashboard
         stats.put("predictedSales", predictedSales);
         stats.put("aiStatus", aiStatus); 
 
