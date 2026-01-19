@@ -4,10 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -19,43 +17,24 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/css/**", "/js/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/css/**", "/js/**", "/images/**").permitAll() 
+                .requestMatchers("/login", "/error").permitAll()                
+                // 🧠 ENTERPRISE REFINEMENT: Protect the AI/Revenue API
+                .requestMatchers("/api/dashboard/**").hasRole("ADMIN")
+                .anyRequest().authenticated()                                   
             )
-            .formLogin(login -> login
-                .defaultSuccessUrl("/", true)
+            .formLogin(form -> form
+                .loginPage("/login") // 👈 THIS RESTORES YOUR CUSTOM UI
+                .defaultSuccessUrl("/", true) 
                 .permitAll()
             )
-            .logout(logout -> logout
-                .permitAll()
-            );
+            .logout(logout -> logout.permitAll());
 
         return http.build();
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        // UPDATED PASSWORD FOR ALL ADMINS
-        String securePassword = "Ngor@1998!";
-
-        UserDetails raphael = User.withDefaultPasswordEncoder()
-                .username("Raphael")
-                .password(securePassword)
-                .roles("ADMIN")
-                .build();
-
-        UserDetails matty = User.withDefaultPasswordEncoder()
-                .username("Matty")
-                .password(securePassword)
-                .roles("ADMIN")
-                .build();
-
-        UserDetails ian = User.withDefaultPasswordEncoder()
-                .username("Ian")
-                .password(securePassword)
-                .roles("ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(raphael, matty, ian);
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

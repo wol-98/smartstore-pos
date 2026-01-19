@@ -2,9 +2,11 @@ package com.example.demo.service;
 
 import com.example.demo.model.Sale;
 import com.example.demo.model.SaleItem;
+import com.example.demo.repository.CustomerRepository; // 👈 New Import
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 import com.lowagie.text.pdf.draw.LineSeparator;
+import org.springframework.beans.factory.annotation.Autowired; // 👈 New Import
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
@@ -14,9 +16,12 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Optional; // 👈 New Import
 
 @Service
 public class PdfService {
+
+    @Autowired private CustomerRepository customerRepo; // 👈 Inject Repo to fetch points
 
     private static final DecimalFormat df = new DecimalFormat("#,##0.00");
     private static final String[] units = { "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" };
@@ -63,6 +68,12 @@ public class PdfService {
             leftMeta.addElement(new Paragraph("INVOICE / RECEIPT", boldFont));
             leftMeta.addElement(new Paragraph("Invoice No: " + sale.getId(), bodyFont));
             leftMeta.addElement(new Paragraph("Date: " + formatDate(sale.getDate()), bodyFont));
+            
+            // Print Customer Phone if exists in Metadata
+            if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
+                leftMeta.addElement(new Paragraph("Customer: " + sale.getCustomerPhone(), bodyFont));
+            }
+            
             metaTable.addCell(leftMeta);
 
             PdfPCell rightMeta = new PdfPCell();
@@ -77,35 +88,24 @@ public class PdfService {
 
             document.add(metaTable);
 
-            // --- ITEMS TABLE (UPDATED FOR 5 COLUMNS) ---
+            // --- ITEMS TABLE ---
             PdfPTable table = new PdfPTable(5); 
             table.setWidthPercentage(100);
-            // S/No(1), Description(4), Unit Price(2), Qty(1.5), Total(2)
             table.setWidths(new float[]{1f, 4f, 2f, 1.5f, 2f});
             table.setSpacingBefore(5);
 
-            // HEADERS (UPDATED)
             table.addCell(createStyledHeader("S/No.", tableHeaderFont));
             table.addCell(createStyledHeader("Description", tableHeaderFont));
-            table.addCell(createStyledHeader("Unit Price", tableHeaderFont)); // New Column
+            table.addCell(createStyledHeader("Unit Price", tableHeaderFont)); 
             table.addCell(createStyledHeader("Qty", tableHeaderFont));
             table.addCell(createStyledHeader("Total ($)", tableHeaderFont));
 
             int i = 1;
             for (SaleItem item : sale.getItems()) {
-                // 1. S/No
                 table.addCell(createCell(String.valueOf(i++), bodyFont, Element.ALIGN_CENTER));
-                
-                // 2. Description
                 table.addCell(createCell(item.getProductName(), bodyFont, Element.ALIGN_LEFT));
-                
-                // 3. Unit Price (New)
                 table.addCell(createCell(df.format(item.getPrice()), bodyFont, Element.ALIGN_RIGHT));
-
-                // 4. Qty
                 table.addCell(createCell(String.valueOf(item.getQuantity()), bodyFont, Element.ALIGN_CENTER));
-                
-                // 5. Total
                 BigDecimal subtotal = item.getPrice().multiply(new BigDecimal(item.getQuantity()));
                 table.addCell(createCell(df.format(subtotal), bodyFont, Element.ALIGN_RIGHT));
             }
@@ -127,11 +127,43 @@ public class PdfService {
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY));
             document.add(words);
 
+            // 🌟 🌟 🌟 NEW: LOYALTY POINTS FOOTER 🌟 🌟 🌟
+            if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
+                Optional<com.example.demo.model.Customer> custOpt = customerRepo.findByPhone(sale.getCustomerPhone());
+                
+                if(custOpt.isPresent()) {
+                    com.example.demo.model.Customer cust = custOpt.get();
+                    
+                    document.add(new Paragraph(" ")); // Spacer
+                    
+                    PdfPTable loyaltyTable = new PdfPTable(1);
+                    loyaltyTable.setWidthPercentage(100);
+                    
+                    PdfPCell lCell = new PdfPCell();
+                    lCell.setBorder(Rectangle.TOP | Rectangle.BOTTOM);
+                    lCell.setBorderColor(Color.LIGHT_GRAY);
+                    lCell.setPadding(10);
+                    lCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    
+                    // Green Text
+                    Font loyaltyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(16, 185, 129)); 
+                    Paragraph p1 = new Paragraph("LOYALTY BALANCE: " + cust.getPoints() + " POINTS", loyaltyFont);
+                    p1.setAlignment(Element.ALIGN_CENTER);
+                    
+                    Paragraph p2 = new Paragraph("(Includes points earned on this purchase)", footerFont);
+                    p2.setAlignment(Element.ALIGN_CENTER);
+                    
+                    lCell.addElement(p1);
+                    lCell.addElement(p2);
+                    loyaltyTable.addCell(lCell);
+                    
+                    document.add(loyaltyTable);
+                }
+            }
+            // 🌟 🌟 🌟 END LOYALTY SECTION 🌟 🌟 🌟
+
             // --- SYSTEM VALIDATION FOOTER ---
             document.add(new Paragraph(" "));
-            document.add(new Chunk(ls));
-            document.add(new Paragraph(" "));
-            
             Paragraph footerTitle = new Paragraph("System Validation", boldFont);
             footerTitle.setAlignment(Element.ALIGN_CENTER);
             document.add(footerTitle);

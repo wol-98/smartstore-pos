@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import jakarta.persistence.Column; // 👈 Added this import
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -22,6 +23,9 @@ public class Product {
     
     // Inventory
     private Integer stock;      
+    
+    // 🚨 SAFETY FIX: Explicitly map to the database column "min_stock"
+    @Column(name = "min_stock") 
     private Integer minStock;
 
     // --- MANUAL GETTERS AND SETTERS ---
