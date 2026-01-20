@@ -4,33 +4,34 @@ import os
 
 app = Flask(__name__)
 
+# =========================
+# 1. THE BRAIN (Prediction Logic)
+# =========================
 @app.route('/predict', methods=['POST'])
 def predict():
     print("\n🔵 Received Prediction Request...")
     data = request.json
     
-    # 1. Validation
+    # A. Check if data exists
     if not data or len(data) < 2:
         return jsonify({"prediction": 0, "status": "insufficient_data"})
 
     try:
-        # 2. Prepare Data (X = days passed, Y = quantity)
-        # Parse dates and sort just in case
+        # B. Parse Data
         parsed_data = []
         for d in data:
             dt = datetime.strptime(d['date'], "%Y-%m-%d")
             parsed_data.append({'date': dt, 'qty': d['qty']})
         
-        # Find start date to normalize X (Day 0, Day 1, etc.)
+        # C. Do the Math (Simple Linear Regression)
+        # We start counting days from the first sale (Day 0, Day 1...)
         start_date = min(d['date'] for d in parsed_data)
         
         X = [(d['date'] - start_date).days for d in parsed_data]
         Y = [d['qty'] for d in parsed_data]
         
         n = len(X)
-
-        # 3. Calculate Slope (m) and Intercept (b) using algebraic formulas
-        # Formula: m = (n*Sum(xy) - Sum(x)*Sum(y)) / (n*Sum(x^2) - (Sum(x))^2)
+        
         sum_x = sum(X)
         sum_y = sum(Y)
         sum_xy = sum(x * y for x, y in zip(X, Y))
@@ -44,16 +45,14 @@ def predict():
         slope = (n * sum_xy - sum_x * sum_y) / denominator
         intercept = (sum_y - slope * sum_x) / n
 
-        # 4. Predict Future (Next 7 days)
+        # D. Predict Next 7 Days
         last_day = max(X)
         predicted_total = 0
         
         for i in range(1, 8):
             future_day = last_day + i
-            # y = mx + b
             prediction = (slope * future_day) + intercept
-            # Prevent negative predictions (cant sell -5 items)
-            predicted_total += max(0, prediction)
+            predicted_total += max(0, prediction) # Don't predict negative sales
 
         print(f"🔮 Prediction: {int(predicted_total)} Units")
         return jsonify({"prediction": int(predicted_total), "status": "success"})
@@ -62,6 +61,13 @@ def predict():
         print(f"Error: {e}")
         return jsonify({"prediction": 0, "status": "error"})
 
-if __name__ == '__main__':
+# =========================
+# 2. HEALTH CHECK (Optional)
+# =========================
+@app.route("/api/test")
+def api_test():
+    return jsonify({"status": "API Working"})
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
