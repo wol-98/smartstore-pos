@@ -113,17 +113,31 @@ public class SaleController {
         org.apache.commons.io.IOUtils.copy(pdfStream, response.getOutputStream());
     }
 
-    // --- 3. SEND EMAIL ---
+ // --- 3. SEND EMAIL (UPDATED) ---
     @PostMapping("/{id}/email")
-    public ResponseEntity<?> sendReceiptEmail(@PathVariable Long id, @RequestParam String email) {
+    public ResponseEntity<?> sendReceiptEmail(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
         try {
             Sale sale = saleRepo.findById(id)
                     .orElseThrow(() -> new RuntimeException("Sale not found"));
             
-            emailService.sendReceiptWithAttachment(email, sale);
+            // 1. Try to get email from the JSON body
+            String targetEmail = null;
+            if (body != null && body.containsKey("email")) {
+                targetEmail = body.get("email");
+            }
+
+            // 2. FALLBACK: If no email provided, send to the Admin (You!)
+            if (targetEmail == null || targetEmail.isEmpty()) {
+                targetEmail = "grabmeonly@gmail.com"; // Your email
+                System.out.println("⚠️ No customer email provided. Defaulting to Admin.");
+            }
             
-            return ResponseEntity.ok().body("Email sent successfully");
+            // 3. Send the email
+            emailService.sendReceiptWithAttachment(targetEmail, sale);
+            
+            return ResponseEntity.ok().body("Email sent successfully to " + targetEmail);
         } catch (Exception e) {
+            e.printStackTrace(); // Print error to logs for debugging
             return ResponseEntity.badRequest().body("Error sending email: " + e.getMessage());
         }
     }
