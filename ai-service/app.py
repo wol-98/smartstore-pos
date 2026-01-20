@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import numpy as np
 from datetime import datetime
 import os
 
@@ -10,33 +9,58 @@ def predict():
     print("\n🔵 Received Prediction Request...")
     data = request.json
     
+    # 1. Validation
     if not data or len(data) < 2:
         return jsonify({"prediction": 0, "status": "insufficient_data"})
 
-    # 1. PREPARE VECTORS
-    dates = [datetime.strptime(d['date'], "%Y-%m-%d") for d in data]
-    start_date = min(dates)
-    
-    X_vals = [(d - start_date).days for d in dates]
-    X = np.array([[x, 1] for x in X_vals]) 
-    y = np.array([d['qty'] for d in data])
-
     try:
-        # 2. COMPUTE COEFFICIENTS (Normal Equation)
-        X_T = X.T
-        beta = np.linalg.inv(X_T @ X) @ X_T @ y
-        slope, intercept = beta[0], beta[1]
+        # 2. Prepare Data (X = days passed, Y = quantity)
+        # Parse dates and sort just in case
+        parsed_data = []
+        for d in data:
+            dt = datetime.strptime(d['date'], "%Y-%m-%d")
+            parsed_data.append({'date': dt, 'qty': d['qty']})
         
-        # 3. PREDICT FUTURE (Next 7 Days)
-        last_day = max(X_vals)
-        future_days = [last_day + i for i in range(1, 8)]
-        predicted_total = sum([max(0, (slope * day) + intercept) for day in future_days])
+        # Find start date to normalize X (Day 0, Day 1, etc.)
+        start_date = min(d['date'] for d in parsed_data)
+        
+        X = [(d['date'] - start_date).days for d in parsed_data]
+        Y = [d['qty'] for d in parsed_data]
+        
+        n = len(X)
+
+        # 3. Calculate Slope (m) and Intercept (b) using algebraic formulas
+        # Formula: m = (n*Sum(xy) - Sum(x)*Sum(y)) / (n*Sum(x^2) - (Sum(x))^2)
+        sum_x = sum(X)
+        sum_y = sum(Y)
+        sum_xy = sum(x * y for x, y in zip(X, Y))
+        sum_x2 = sum(x ** 2 for x in X)
+
+        denominator = (n * sum_x2 - sum_x ** 2)
+
+        if denominator == 0:
+            return jsonify({"prediction": 0, "status": "error_vertical_line"})
+
+        slope = (n * sum_xy - sum_x * sum_y) / denominator
+        intercept = (sum_y - slope * sum_x) / n
+
+        # 4. Predict Future (Next 7 days)
+        last_day = max(X)
+        predicted_total = 0
+        
+        for i in range(1, 8):
+            future_day = last_day + i
+            # y = mx + b
+            prediction = (slope * future_day) + intercept
+            # Prevent negative predictions (cant sell -5 items)
+            predicted_total += max(0, prediction)
 
         print(f"🔮 Prediction: {int(predicted_total)} Units")
         return jsonify({"prediction": int(predicted_total), "status": "success"})
 
-    except np.linalg.LinAlgError:
-        return jsonify({"prediction": 0, "status": "singular_matrix_error"})
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"prediction": 0, "status": "error"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
