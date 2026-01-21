@@ -81,7 +81,7 @@ public class PdfService {
             Paragraph pRight = new Paragraph();
             pRight.setAlignment(Element.ALIGN_RIGHT);
             pRight.add(new Chunk("Cashier: " + (sale.getCashierName() != null ? sale.getCashierName() : "N/A") + "\n", bodyFont));
-            pRight.add(new Chunk("Status: " + (sale.getStatus()!=null?sale.getStatus():"Paid") + " | \nMethod: " + (sale.getPaymentMethod()!=null?sale.getPaymentMethod():"Cash"), bodyFont));
+            pRight.add(new Chunk("Status: " + (sale.getStatus()!=null?sale.getStatus():"Paid") + "\nMethod: " + (sale.getPaymentMethod()!=null?sale.getPaymentMethod():"Cash"), bodyFont));
             rightMeta.addElement(pRight);
             metaTable.addCell(rightMeta);
 
