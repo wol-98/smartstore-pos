@@ -2,11 +2,11 @@ package com.example.demo.service;
 
 import com.example.demo.model.Sale;
 import com.example.demo.model.SaleItem;
-import com.example.demo.repository.CustomerRepository; // 👈 New Import
+import com.example.demo.repository.CustomerRepository;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 import com.lowagie.text.pdf.draw.LineSeparator;
-import org.springframework.beans.factory.annotation.Autowired; // 👈 New Import
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
@@ -16,12 +16,12 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Optional; // 👈 New Import
+import java.util.Optional;
 
 @Service
 public class PdfService {
 
-    @Autowired private CustomerRepository customerRepo; // 👈 Inject Repo to fetch points
+    @Autowired private CustomerRepository customerRepo;
 
     private static final DecimalFormat df = new DecimalFormat("#,##0.00");
     private static final String[] units = { "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" };
@@ -69,7 +69,6 @@ public class PdfService {
             leftMeta.addElement(new Paragraph("Invoice No: " + sale.getId(), bodyFont));
             leftMeta.addElement(new Paragraph("Date: " + formatDate(sale.getDate()), bodyFont));
             
-            // Print Customer Phone if exists in Metadata
             if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
                 leftMeta.addElement(new Paragraph("Customer: " + sale.getCustomerPhone(), bodyFont));
             }
@@ -96,9 +95,11 @@ public class PdfService {
 
             table.addCell(createStyledHeader("S/No.", tableHeaderFont));
             table.addCell(createStyledHeader("Description", tableHeaderFont));
+            // ✅ CHANGED: Rs. instead of $
             table.addCell(createStyledHeader("Unit Price", tableHeaderFont)); 
             table.addCell(createStyledHeader("Qty", tableHeaderFont));
-            table.addCell(createStyledHeader("Total ($)", tableHeaderFont));
+            // ✅ CHANGED: Rs. instead of $
+            table.addCell(createStyledHeader("Total (Rs.)", tableHeaderFont));
 
             int i = 1;
             for (SaleItem item : sale.getItems()) {
@@ -117,24 +118,26 @@ public class PdfService {
             summaryTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
             summaryTable.setSpacingBefore(10);
             summaryTable.addCell(createSummaryCell("Grand Total", boldFont));
-            summaryTable.addCell(createSummaryCell(df.format(sale.getTotalAmount()), boldFont));
+            // ✅ CHANGED: Rs. Format
+            summaryTable.addCell(createSummaryCell("Rs. " + df.format(sale.getTotalAmount()), boldFont));
             document.add(summaryTable);
             
             // --- AMOUNT IN WORDS ---
             document.add(new Paragraph(" "));
             String moneyString = convertToWords(sale.getTotalAmount().longValue());
-            Paragraph words = new Paragraph("In Words: " + moneyString + " Dollars Only", 
+            // ✅ CHANGED: Rupees Only
+            Paragraph words = new Paragraph("Amount In Words: " + moneyString + " Rupees Only", 
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY));
             document.add(words);
 
-            // 🌟 🌟 🌟 NEW: LOYALTY POINTS FOOTER 🌟 🌟 🌟
+            // --- LOYALTY FOOTER ---
             if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
                 Optional<com.example.demo.model.Customer> custOpt = customerRepo.findByPhone(sale.getCustomerPhone());
                 
                 if(custOpt.isPresent()) {
                     com.example.demo.model.Customer cust = custOpt.get();
                     
-                    document.add(new Paragraph(" ")); // Spacer
+                    document.add(new Paragraph(" ")); 
                     
                     PdfPTable loyaltyTable = new PdfPTable(1);
                     loyaltyTable.setWidthPercentage(100);
@@ -145,7 +148,6 @@ public class PdfService {
                     lCell.setPadding(10);
                     lCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                     
-                    // Green Text
                     Font loyaltyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(16, 185, 129)); 
                     Paragraph p1 = new Paragraph("LOYALTY BALANCE: " + cust.getPoints() + " POINTS", loyaltyFont);
                     p1.setAlignment(Element.ALIGN_CENTER);
@@ -160,9 +162,8 @@ public class PdfService {
                     document.add(loyaltyTable);
                 }
             }
-            // 🌟 🌟 🌟 END LOYALTY SECTION 🌟 🌟 🌟
 
-            // --- SYSTEM VALIDATION FOOTER ---
+            // --- FOOTER ---
             document.add(new Paragraph(" "));
             Paragraph footerTitle = new Paragraph("System Validation", boldFont);
             footerTitle.setAlignment(Element.ALIGN_CENTER);

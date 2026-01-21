@@ -148,47 +148,47 @@
 
         .btn-icon { width: 36px; height: 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0; margin-right: 5px; }
 
-		/* ==========================================
-		           🖨️ THERMAL PRINTER MODE (FIXED)
-		           ========================================== */
-		        #thermal-receipt { display: none; } /* Hidden on screen */
+        /* ==========================================
+           🖨️ THERMAL PRINTER MODE (FIXED)
+           ========================================== */
+        #thermal-receipt { display: none; } /* Hidden on screen */
 
-		        @media print {
-		            /* 1. Hide EVERYTHING else */
-		            body * { visibility: hidden; height: 0; overflow: hidden; }
-		            
-		            /* 2. CRITICAL FIX: Force the receipt to display */
-		            #thermal-receipt { 
-		                display: block !important; /* <--- THIS WAS MISSING */
-		                visibility: visible;
-		                position: absolute;
-		                left: 0;
-		                top: 0;
-		                width: 100%;
-		                margin: 0;
-		                padding: 0;
-		                font-family: 'Courier New', monospace;
-		                color: black;
-		                background: white; /* Ensure background is white */
-		                z-index: 9999; /* Force it to top */
-		            }
+        @media print {
+            /* 1. Hide EVERYTHING else */
+            body * { visibility: hidden; height: 0; overflow: hidden; }
+            
+            /* 2. CRITICAL FIX: Force the receipt to display */
+            #thermal-receipt { 
+                display: block !important; /* <--- THIS WAS MISSING */
+                visibility: visible;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                font-family: 'Courier New', monospace;
+                color: black;
+                background: white; /* Ensure background is white */
+                z-index: 9999; /* Force it to top */
+            }
 
-		            /* 3. Ensure children are visible */
-		            #thermal-receipt * { 
-		                visibility: visible; 
-		                height: auto; 
-		                overflow: visible; 
-		            }
-		            
-		            /* Clean up layout for print */
-		            .receipt-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
-		            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
-		            .receipt-footer { text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: 10px; }
-		            .receipt-bold { font-weight: bold; }
-		            
-		            /* Hide browser default header/footer if possible (optional) */
-		            @page { margin: 0; size: auto; }
-		        }
+            /* 3. Ensure children are visible */
+            #thermal-receipt * { 
+                visibility: visible; 
+                height: auto; 
+                overflow: visible; 
+            }
+            
+            /* Clean up layout for print */
+            .receipt-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
+            .receipt-footer { text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: 10px; }
+            .receipt-bold { font-weight: bold; }
+            
+            /* Hide browser default header/footer if possible (optional) */
+            @page { margin: 0; size: auto; }
+        }
     </style>
 </head>
 <body id="mainBody">
@@ -225,7 +225,7 @@
         <div class="grid-dashboard-top">
             <div class="card stat-card stat-revenue">
                 <h3>Total Revenue</h3>
-                <h2 id="statRevenue">$0.00</h2>
+                <h2 id="statRevenue">₹0.00</h2>
                 <div style="margin-top:10px; font-size:0.85em; color:var(--secondary); font-weight:600;"><i class="fa-solid fa-arrow-trend-up"></i> Live Updates</div>
             </div>
             <div class="card stat-card stat-orders">
@@ -306,7 +306,7 @@
                 </div>
                 <div class="form-row">
                     <div>
-                        <label style="font-size:0.8em; font-weight:600; color:var(--text-muted); margin-bottom:5px; display:block;">Price ($)</label>
+                        <label style="font-size:0.8em; font-weight:600; color:var(--text-muted); margin-bottom:5px; display:block;">Price (₹)</label>
                         <input type="number" id="prodPrice" step="0.01">
                     </div>
                     <div>
@@ -370,7 +370,7 @@
             <div style="border-top: 2px dashed var(--border); margin-top:20px; padding-top:20px;">
                 <div class="flex-between" style="margin-bottom:15px;">
                     <span style="font-weight:600; color:var(--text-muted);">Grand Total</span>
-                    <span style="font-size:1.8em; font-weight:800; color:var(--dark);">$<span id="cartTotal">0.00</span></span>
+                    <span style="font-size:1.8em; font-weight:800; color:var(--dark);">₹<span id="cartTotal">0.00</span></span>
                 </div>
 
                 <div style="margin-bottom:15px;">
@@ -396,15 +396,16 @@
                     <div style="color:var(--secondary); font-size:3em; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i></div>
                     <h3 style="margin:0 0 10px 0; color:#15803d;">Sale Confirmed!</h3>
                     
-                    <div style="display:flex; gap:10px; justify-content:center;">
-                        <button onclick="downloadReceipt()" style="background:#15803d; width:auto;"><i class="fa-solid fa-download"></i> PDF</button>
-                        <button onclick="printThermal()" style="background:#0f172a; width:auto;"><i class="fa-solid fa-print"></i> Thermal</button>
-                        <button onclick="startNewSale()" style="background:var(--text-muted); width:auto;">New Sale</button>
-                    </div>
-
-                    <div style="margin-top:15px; display:flex; gap:5px;">
-                        <input type="email" id="custEmail" placeholder="customer@email.com">
-                        <button onclick="sendEmail()" style="width:auto; background:var(--primary);">Send</button>
+                    <div style="display:flex; flex-direction: column; gap:10px;">
+                        <button onclick="shareReceipt()" style="background:#4F46E5; padding:12px; font-size:1.1em;">
+                            <i class="fa-solid fa-share-nodes"></i> Share Invoice (Email / WhatsApp)
+                        </button>
+                        
+                        <div style="display:flex; gap:10px;">
+                            <button onclick="downloadReceipt()" style="background:#15803d; width:auto;"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
+                            <button onclick="printThermal()" style="background:#0f172a; width:auto;"><i class="fa-solid fa-print"></i> Thermal Print</button>
+                            <button onclick="startNewSale()" style="background:var(--text-muted); width:auto;">New Sale</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -424,7 +425,7 @@
 
         <div style="border-top: 1px dashed #000; padding-top: 5px; display:flex; justify-content:space-between; font-weight:bold;">
             <span>TOTAL</span>
-            <span id="receipt-total">$0.00</span>
+            <span id="receipt-total">₹0.00</span>
         </div>
         
         <div class="receipt-footer">
@@ -505,7 +506,8 @@
             const url = start && end ? `${API}/dashboard/stats?startDate=${start}&endDate=${end}` : `${API}/dashboard/stats`;
             
             fetch(url).then(res => res.json()).then(stats => {
-                document.getElementById('statRevenue').innerText = '$' + (stats.totalRevenue || 0).toFixed(2);
+                // ✅ CHANGED TO RUPEE
+                document.getElementById('statRevenue').innerText = '₹' + (stats.totalRevenue || 0).toFixed(2);
                 document.getElementById('statOrders').innerText = stats.totalOrders || 0;
                 document.getElementById('statLowStock').innerText = stats.lowStockCount || 0;
                 
@@ -619,7 +621,7 @@
                         <div style="font-weight:600; color:var(--dark);">${p.name}</div>
                         <div style="font-size:0.8em; color:var(--text-muted);">${p.brand || 'Generic'} • ${p.category || 'General'}</div>
                     </td>
-                    <td style="font-weight:600;">$${p.price.toFixed(2)}</td>
+                    <td style="font-weight:600;">₹${p.price.toFixed(2)}</td>
                     <td>
                         <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:2px;">
                             <span>${p.stock} units</span>
@@ -691,7 +693,8 @@
         function deleteProduct(id) { if(confirm("Delete item?")) fetch(`${API}/products/${id}`, {method:'DELETE'}).then(loadInventory); }
         function renderDrop() { 
             const s = document.getElementById('saleProductSelect');
-            if(s) s.innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} ($${p.price})</option>`).join(''); 
+            // ✅ CHANGED TO RUPEE
+            if(s) s.innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} (₹${p.price})</option>`).join(''); 
         }
 
         // --- BILLING LOGIC ---
@@ -714,7 +717,7 @@
             document.getElementById('cartTable').innerHTML = cart.map((i, idx) => `
                 <tr>
                     <td>${i.name}</td><td style="text-align:center;">${i.quantity}</td>
-                    <td style="text-align:right;">$${(i.price*i.quantity).toFixed(2)}</td>
+                    <td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td>
                     <td style="text-align:center; color:var(--danger); cursor:pointer;" onclick="removeFromCart(${idx})"><i class="fa-solid fa-times"></i></td>
                 </tr>`).join('');
             document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+(b.price*b.quantity),0).toFixed(2);
@@ -745,15 +748,51 @@
             });
         }
         function downloadExcel() { window.open(`${API}/sales/export`, '_blank'); }
-        function downloadReceipt() { window.open(`${API}/sales/${lastSaleId}/pdf`, '_blank'); }
-        function sendEmail() { 
-            const email = document.getElementById('custEmail').value;
-            const btn = event.target; btn.innerText="Sending...";
-            fetch(`${API}/sales/${lastSaleId}/email?email=${email}`, {method:'POST'}).then(r=> {
-                if(r.ok) alert("Sent!"); else alert("Error");
-                btn.innerText="Send";
-            });
+        
+        // 🚀 NEW FEATURE: WEB SHARE API FOR INVOICE
+        async function shareReceipt() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+            try {
+                // 1. Fetch PDF Blob from Backend
+                const response = await fetch(`/api/sales/${lastSaleId}/pdf`);
+                const blob = await response.blob();
+
+                // 2. Create File Object
+                const file = new File([blob], `Invoice-${lastSaleId}.pdf`, { type: "application/pdf" });
+
+                // 3. Try to Open Native Share Menu (Mobile/Desktop)
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: 'SmartStore Receipt',
+                        text: `Here is your receipt for Order #${lastSaleId}. Thank you for shopping with us!`,
+                        files: [file]
+                    });
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent!';
+                } else {
+                    // 4. Fallback for older browsers: Just download it
+                    console.warn("Web Share API not supported, falling back to download.");
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Invoice-${lastSaleId}.pdf`;
+                    a.click();
+                    btn.innerHTML = '<i class="fa-solid fa-download"></i> Downloaded';
+                }
+            } catch (error) {
+                console.error('Error sharing:', error);
+                // Last resort fallback
+                window.open(`/api/sales/${lastSaleId}/pdf`, '_blank');
+            } finally {
+                setTimeout(() => btn.innerHTML = originalText, 2000);
+            }
         }
+
+        // Standard Download (Backup)
+        function downloadReceipt() { window.open(`${API}/sales/${lastSaleId}/pdf`, '_blank'); }
+
         function startNewSale() { 
             lastSaleId=null; cart=[]; renderCart(); 
             document.getElementById('postSale').classList.add('hidden'); 
@@ -790,7 +829,7 @@
                 list.innerHTML += `
                     <div class="receipt-item">
                         <span>${item.name} x${item.quantity}</span>
-                        <span>$${(item.price * item.quantity).toFixed(2)}</span>
+                        <span>₹${(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                 `;
             });
