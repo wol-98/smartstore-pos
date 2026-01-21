@@ -48,7 +48,7 @@ public class PdfService {
             storeName.setAlignment(Element.ALIGN_CENTER);
             document.add(storeName);
 
-            Paragraph storeAddr = new Paragraph("Fort Innovation Drive, Tech City, 400001- Mumbai\n9082123246 | www.smartstore.com", subHeaderFont);
+            Paragraph storeAddr = new Paragraph("Xavier's Innovation Drive, TechPioneers, 400090- Mumbai\n9089853298 | www.smartstore.com\nBandra Kurla Complex", subHeaderFont);
             storeAddr.setAlignment(Element.ALIGN_CENTER);
             storeAddr.setSpacingAfter(15);
             document.add(storeAddr);
@@ -81,7 +81,7 @@ public class PdfService {
             Paragraph pRight = new Paragraph();
             pRight.setAlignment(Element.ALIGN_RIGHT);
             pRight.add(new Chunk("Cashier: " + (sale.getCashierName() != null ? sale.getCashierName() : "N/A") + "\n", bodyFont));
-            pRight.add(new Chunk("Status: " + (sale.getStatus()!=null?sale.getStatus():"Paid") + " | Method: " + (sale.getPaymentMethod()!=null?sale.getPaymentMethod():"Cash"), bodyFont));
+            pRight.add(new Chunk("Status: " + (sale.getStatus()!=null?sale.getStatus():"Paid") + " | \nMethod: " + (sale.getPaymentMethod()!=null?sale.getPaymentMethod():"Cash"), bodyFont));
             rightMeta.addElement(pRight);
             metaTable.addCell(rightMeta);
 
