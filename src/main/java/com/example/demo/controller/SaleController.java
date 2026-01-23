@@ -7,15 +7,15 @@ import com.example.demo.service.ExcelService;
 import com.example.demo.service.PdfService;
 import com.example.demo.service.SaleService;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.mail.internet.MimeMessage; // 👈 Required for Email
+import jakarta.mail.internet.MimeMessage; // 👈 For Email
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource; // 👈 Required for Attachment
+import org.springframework.core.io.ByteArrayResource; // 👈 For Attachment
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender; // 👈 Required for Email
-import org.springframework.mail.javamail.MimeMessageHelper; // 👈 Required for Email
+import org.springframework.mail.javamail.JavaMailSender; // 👈 For Email
+import org.springframework.mail.javamail.MimeMessageHelper; // 👈 For Email
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayInputStream;
@@ -33,10 +33,10 @@ public class SaleController {
     @Autowired private EmailService emailService;
     @Autowired private ExcelService excelService;
     
-    // 📧 Inject JavaMailSender directly for the new Share feature
+    // 📧 Inject JavaMailSender for the Share feature
     @Autowired private JavaMailSender mailSender;
 
-    // --- 1. CREATE SALE (Logic delegated to Service) ---
+    // --- 1. CREATE SALE ---
     @PostMapping
     public ResponseEntity<?> createSale(@RequestBody Map<String, Object> saleData) {
         try {
@@ -57,7 +57,7 @@ public class SaleController {
         org.apache.commons.io.IOUtils.copy(pdfStream, response.getOutputStream());
     }
 
-    // --- 3. SEND EMAIL (Legacy Endpoint) ---
+    // --- 3. SEND EMAIL (Legacy Internal) ---
     @PostMapping("/{id}/email")
     public ResponseEntity<?> sendReceiptEmail(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
         try {
@@ -70,16 +70,16 @@ public class SaleController {
         }
     }
 
-    // --- 🚀 4. SHARE INVOICE (NEW Frontend Integration) ---
+    // --- 🚀 4. SHARE INVOICE (Frontend Integration) ---
     @PostMapping("/{id}/share")
     public ResponseEntity<?> shareInvoice(@PathVariable Long id, @RequestParam String email) {
         try {
             // 1. Find Sale
             Sale sale = saleRepo.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));
             
-            // 2. Generate PDF Bytes
+            // 2. Generate PDF Bytes on the fly
             ByteArrayInputStream pdfStream = pdfService.generateInvoice(sale);
-            byte[] pdfBytes = pdfStream.readAllBytes(); // Convert stream to byte array
+            byte[] pdfBytes = pdfStream.readAllBytes();
 
             // 3. Prepare Email
             MimeMessage message = mailSender.createMimeMessage();
@@ -97,18 +97,21 @@ public class SaleController {
             return ResponseEntity.ok("Email sent successfully to " + email);
             
         } catch (Exception e) {
-            e.printStackTrace(); // Log error for debugging
+            e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error sending email: " + e.getMessage());
         }
     }
 
-    // --- 5. EXPORT EXCEL ---
+    // --- 5. EXPORT EXCEL (Fixed for Frontend Button) ---
     @GetMapping("/export")
     public ResponseEntity<InputStreamResource> exportSalesToExcel() {
         List<Sale> sales = saleRepo.findAll();
         ByteArrayInputStream in = excelService.exportSalesToExcel(sales);
         HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Disposition", "attachment; filename=sales-report.xlsx");
-        return ResponseEntity.ok().headers(headers).contentType(MediaType.parseMediaType("application/vnd.ms-excel")).body(new InputStreamResource(in));
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(new InputStreamResource(in));
     }
 }
