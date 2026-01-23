@@ -22,14 +22,14 @@ public class FeedbackController {
     @Autowired private ProductRepository productRepo; 
     @Autowired private JavaMailSender mailSender; 
 
-    // 1. SUBMIT FEEDBACK (With Auto-Email)
+    // 1. SUBMIT FEEDBACK (With Auto-Email for Bugs)
     @PostMapping
     public ResponseEntity<?> submitFeedback(@RequestBody Map<String, Object> payload, Authentication auth) {
         try {
             Feedback f = new Feedback();
             f.setMessage((String) payload.get("message"));
             f.setCategory((String) payload.get("category"));
-            f.setUsername(auth.getName());
+            f.setUsername(auth != null ? auth.getName() : "Anonymous");
             
             // Link Product if provided (For Stock Requests)
             if (payload.containsKey("productId") && payload.get("productId") != null) {
@@ -37,7 +37,7 @@ public class FeedbackController {
                 if(!pidStr.isEmpty()) f.setLinkedProductId(Long.parseLong(pidStr));
             }
 
-            Feedback saved = feedbackRepo.save(f);
+            feedbackRepo.save(f);
 
             // 🚀 EMAIL ALERT: Only for "Bug" category
             if ("Bug".equalsIgnoreCase(f.getCategory())) {
@@ -72,8 +72,9 @@ public class FeedbackController {
         Feedback f = feedbackRepo.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
         
         if (f.getLinkedProductId() != null) {
+            // 📦 Adds 10 units automatically
             Product p = productRepo.findById(f.getLinkedProductId()).orElseThrow();
-            p.setStock(p.getStock() + 10); // 📦 Adds 10 units automatically
+            p.setStock(p.getStock() + 10); 
             productRepo.save(p);
             
             f.setStatus("APPROVED (Stock Added)");
@@ -88,11 +89,10 @@ public class FeedbackController {
         new Thread(() -> {
             try {
                 SimpleMailMessage msg = new SimpleMailMessage();
-                msg.setTo("raphaelwol20@gmail.com"); // 👈 Your email
+                msg.setTo("raphaelwol20@gmail.com"); 
                 msg.setSubject("🚨 BUG REPORT: " + f.getUsername());
                 msg.setText("User: " + f.getUsername() + "\nMessage: " + f.getMessage());
                 mailSender.send(msg);
-                System.out.println("📧 Bug Alert Sent!");
             } catch (Exception e) {
                 System.err.println("Failed to send alert: " + e.getMessage());
             }
