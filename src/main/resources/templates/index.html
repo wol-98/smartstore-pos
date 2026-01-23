@@ -18,7 +18,6 @@
             --input-bg: #ffffff;
         }
 
-        /* DARK MODE */
         body.dark-mode {
             --light: #0f172a; --card-bg: #1e293b; --border: #334155;
             --text-main: #f1f5f9; --text-muted: #94a3b8; --input-bg: #0f172a;
@@ -80,7 +79,7 @@
         th { text-align: left; padding: 12px; background: var(--light); font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border); } 
         td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9em; vertical-align: middle; }
         
-        /* 🚀 UNDO TOAST NOTIFICATION */
+        /* UNDO TOAST */
         #undoToast {
             visibility: hidden; min-width: 300px; background-color: #333; color: #fff; text-align: center;
             border-radius: 8px; padding: 16px; position: fixed; z-index: 100; left: 50%; bottom: 30px;
@@ -96,7 +95,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .user-badge { background: var(--card-bg); border: 1px solid var(--border); padding: 8px 16px; border-radius: 30px; font-weight: 600; font-size: 0.9em; display: flex; align-items: center; gap: 8px; }
 
-        /* THERMAL RECEIPT */
+        /* 🚀 FIXED THERMAL RECEIPT CSS */
         #thermal-receipt { display: none; } 
         @media print { 
             body * { visibility: hidden; } 
@@ -106,8 +105,18 @@
             .t-title { font-size: 1.4em; font-weight: 900; margin: 0 0 5px 0; letter-spacing: 1px; }
             .t-sub { font-size: 0.9em; color: #333; margin-bottom: 2px; }
             .t-meta-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 10px; font-size: 0.9em; border-bottom: 1px solid #000; padding-bottom: 5px; }
-            .t-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-            .t-table th, .t-table td { border: 1px solid #000; padding: 4px; vertical-align: top; }
+            
+            /* Table Layout Fixed */
+            .t-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
+            .t-table th, .t-table td { border: 1px solid #000; padding: 4px; vertical-align: top; word-wrap: break-word; overflow: hidden; font-size: 10px; }
+            
+            /* Columns sizing */
+            .t-table th:nth-child(1) { width: 10%; } /* # */
+            .t-table th:nth-child(2) { width: 40%; } /* Item */
+            .t-table th:nth-child(3) { width: 20%; } /* Price */
+            .t-table th:nth-child(4) { width: 10%; } /* Qty */
+            .t-table th:nth-child(5) { width: 20%; } /* Total */
+
             .t-table th { background: #f0f0f0 !important; font-weight: 800; text-align: center; -webkit-print-color-adjust: exact; }
             .t-total-row { display: flex; justify-content: space-between; font-size: 1.2em; font-weight: 900; margin-top: 5px; padding: 5px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; }
             .t-footer { text-align: center; margin-top: 20px; font-size: 0.8em; border-top: 1px dashed #000; padding-top: 10px; }
@@ -144,19 +153,13 @@
             <div class="card stat-card"><h3>Total Orders</h3><h2 id="statOrders">0</h2><div style="font-size:0.8em; color:var(--primary);">📋 Processed</div></div>
             <div class="card stat-card"><h3>Stock Alerts</h3><h2 id="statLowStock" style="color:var(--danger);">0</h2><div style="font-size:0.8em; color:var(--danger);">⚠ Action Needed</div></div>
             <div class="card stat-card" style="background: linear-gradient(135deg, #7e22ce 0%, #a855f7 100%); color: white;">
-                <h3 style="color:white; opacity:0.9;">AI Forecast</h3><h2 id="statPrediction" style="color:white; margin-top:5px;">0 Units</h2><div style="margin-top:5px; font-size:0.8em;"><i class="fa-solid fa-robot"></i> ML Powered</div>
+                <h3 style="color:white; opacity:0.9;">AI Forecast</h3><h2 id="statPrediction" style="color:white; margin-top:5px;">...</h2><div style="margin-top:5px; font-size:0.8em;"><i class="fa-solid fa-robot"></i> ML Powered</div>
             </div>
         </div>
         <div class="grid-dashboard-bottom">
             <div class="card"><h3>Sales Activity</h3><div style="height:250px;"><canvas id="salesChart"></canvas></div></div>
             <div class="card"><h3>Best Sellers</h3><div style="height:250px; display:flex; justify-content:center;"><canvas id="productsChart"></canvas></div></div>
-            
-            <div class="card">
-                <h3>🏆 VIP Customers</h3>
-                <div class="vip-scroll-area">
-                    <table style="margin-top:10px;"><tbody id="vipTable"></tbody></table>
-                </div>
-            </div>
+            <div class="card"><h3>🏆 VIP Customers</h3><div class="vip-scroll-area"><table style="margin-top:10px;"><tbody id="vipTable"></tbody></table></div></div>
         </div>
     </div>
 
@@ -234,6 +237,13 @@
                     <h2 style="margin:0; font-size:1.3em;">Product Catalog</h2>
                     <input type="text" id="posSearch" placeholder="🔍 Search item..." onkeyup="renderCatalog()" style="width:50%;">
                 </div>
+                <div class="flex-between" style="margin-bottom:10px; background:#f3f4f6; padding:8px; border-radius:8px;">
+                    <span style="font-weight:600; font-size:0.9em; color:#333;">⚡ Bulk Mode:</span>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="font-size:0.8em; color:#333;">Qty:</label>
+                        <input type="number" id="bulkQty" value="1" min="1" style="width:60px; padding:5px; text-align:center; font-weight:bold;">
+                    </div>
+                </div>
                 <div id="productGrid" class="catalog-grid"></div>
             </div>
         </div>
@@ -273,7 +283,7 @@
 
         function loadCurrentUser(){ fetch('/api/me').then(r=>r.json()).then(d=>{ document.getElementById('currentUserDisplay').innerText=d.username+" ("+(d.role||'Staff')+")"; document.getElementById('cashierName').value=d.username; if(d.role==='ADMIN'){ document.getElementById('mainBody').classList.add('admin-view'); document.getElementById('dashboardSection').classList.remove('hidden'); document.getElementById('inventorySection').classList.remove('hidden'); loadDashboard(); loadInventory(); } else { document.getElementById('mainBody').classList.remove('admin-view'); document.getElementById('billingSection').classList.remove('hidden'); document.getElementById('adminControls').remove(); document.getElementById('exportBtn').remove(); document.getElementById('importBtn').remove(); loadInventory(); } }); }
 
-        // 🚀 DASHBOARD FIX: AUTO DATE SELECTION
+        // 🚀 UPDATED: LAZY LOAD DASHBOARD
         function loadDashboard(){ 
             let start = document.getElementById('filterStart').value;
             let end = document.getElementById('filterEnd').value;
@@ -288,26 +298,62 @@
                 document.getElementById('filterEnd').value = end;
             }
 
+            // 1. Fetch Fast Stats
             fetch(`${API}/dashboard/stats?startDate=${start}&endDate=${end}`)
-                .then(r => { if (!r.ok) throw new Error("Server Error"); return r.json(); })
+                .then(r => r.json())
                 .then(s => { 
                     document.getElementById('statRevenue').innerText = '₹' + (s.totalRevenue || 0).toFixed(2); 
                     document.getElementById('statOrders').innerText = s.totalOrders || 0; 
                     document.getElementById('statLowStock').innerText = s.lowStockCount || 0; 
-                    document.getElementById('statPrediction').innerText = (s.predictedSales || 0) + " Units";
-
                     new Chart(document.getElementById('salesChart'), { type: 'bar', data: { labels: ['Orders', 'Alerts'], datasets: [{ data: [s.totalOrders || 0, s.lowStockCount || 0], backgroundColor: ['#7e22ce', '#EF4444'] }] }, options: { plugins: { legend: { display: false } } } });
                     new Chart(document.getElementById('productsChart'), { type: 'doughnut', data: { labels: Object.keys(s.topProducts || {}), datasets: [{ data: Object.values(s.topProducts || {}), backgroundColor: ['#3b82f6', '#10B981', '#F59E0B', '#EF4444', '#8b5cf6'] }] }, options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
-
                     document.getElementById('vipTable').innerHTML = (s.topCustomers || []).map((c, i) => `<tr><td style="padding:10px;"><b>${i + 1}. ${c.name}</b><br><small>${c.phone}</small></td><td style="text-align:right; color:#7e22ce;"><b>★ ${c.points}</b></td></tr>`).join('') || '<tr><td style="padding:10px; text-align:center;">No VIP Data Yet</td></tr>';
                 })
                 .catch(err => console.error("Dashboard Load Failed:", err));
+
+            // 2. Fetch Slow AI Stats Separately
+            document.getElementById('statPrediction').innerText = "...";
+            fetch(`${API}/dashboard/stats/ai`)
+                .then(r => r.json())
+                .then(ai => {
+                    document.getElementById('statPrediction').innerText = (ai.predictedSales || 0) + " Units";
+                });
         }
 
-        function loadInventory(){ fetch(`${API}/products`).then(r=>r.json()).then(d=>{ products=d; renderInv(); renderCatalog(); }); }
+        // 🚀 UPDATED: FAST CATALOG RENDER
+        function loadInventory(){ 
+            fetch(`${API}/products`).then(r=>r.json()).then(d=>{ 
+                products=d; 
+                // Render catalog instantly
+                requestAnimationFrame(() => renderCatalog()); 
+                // Render admin table slightly later
+                if(!document.getElementById('inventorySection').classList.contains('hidden')){
+                    setTimeout(renderInv, 50); 
+                }
+            }); 
+        }
+
         function renderCatalog(){ const t=document.getElementById('posSearch').value.toLowerCase(); document.getElementById('productGrid').innerHTML = products.filter(p=>p.name.toLowerCase().includes(t)||String(p.id).includes(t)).map(p=>{ let c='product-card', s='stock-badge', a=`addToCart({id:${p.id}})`; if(p.stock<=5) s+=' stock-low'; if(p.stock===0){ s+=' stock-out'; c+=' opacity-50'; a=''; } return `<div class="${c}" onclick="${a}"><div><h4>${p.name}</h4><small>${p.brand||''}</small></div><div class="flex-between"><div class="price">₹${p.price}</div><div class="${s}">${p.stock} left</div></div></div>`; }).join(''); }
         
-        function addToCart(o){ playBeep(); let p=products.find(x=>x.id===o.id), i=cart.find(x=>x.productId===o.id); if(p.stock<=(i?i.quantity:0)) return alert("Out of Stock"); if(i) i.quantity++; else cart.push({productId:p.id,name:p.name,price:p.price,quantity:1}); renderCart(); }
+        // 🚀 UPDATED: USE BULK QTY
+        function addToCart(o){ 
+            playBeep(); 
+            let p = products.find(x => x.id === o.id);
+            let i = cart.find(x => x.productId === o.id);
+            
+            let qtyToAdd = parseInt(document.getElementById('bulkQty').value) || 1;
+            let currentQty = i ? i.quantity : 0;
+
+            if (p.stock < (currentQty + qtyToAdd)) return alert("Out of Stock"); 
+            
+            if (i) i.quantity += qtyToAdd; 
+            else cart.push({productId:p.id, name:p.name, price:p.price, quantity:qtyToAdd});
+            
+            // Reset to 1 for safety
+            document.getElementById('bulkQty').value = 1; 
+            renderCart(); 
+        }
+
         function removeFromCart(i){ cart.splice(i,1); renderCart(); }
         function clearCart(){ if(confirm("Clear?")) { cart=[]; renderCart(); } }
         function renderCart(){ document.getElementById('cartTable').innerHTML=cart.map((i,x)=>`<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td><td onclick="removeFromCart(${x})" style="color:red; cursor:pointer; text-align:center;">×</td></tr>`).join(''); document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+b.price*b.quantity,0).toFixed(2); }
@@ -325,7 +371,6 @@
 
         function startNewSale(){ cart=[]; renderCart(); document.getElementById('postSale').classList.add('hidden'); document.getElementById('btnCheckout').classList.remove('hidden'); document.getElementById('btnCheckout').innerText='Complete Transaction'; document.getElementById('shareEmail').value=''; document.getElementById('custEmail').value=''; }
         
-        // 🚀 FIXED: UPDATE PRODUCT WORKS
         function saveProduct() {
             const id = document.getElementById('prodId').value;
             const payload = { name: document.getElementById('prodName').value, brand: document.getElementById('prodBrand').value, category: document.getElementById('prodCategory').value, price: parseFloat(document.getElementById('prodPrice').value), stock: parseInt(document.getElementById('prodStock').value) };
@@ -333,31 +378,19 @@
             fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); });
         }
 
-        // 🚀 SOFT DELETE (UNDO) FEATURE
         function deleteProduct(id) {
             const row = document.querySelector(`tr[data-id="${id}"]`);
-            if (row) {
-                row.style.opacity = '0.3'; 
-                row.style.pointerEvents = 'none';
-            }
+            if (row) { row.style.opacity = '0.3'; row.style.pointerEvents = 'none'; }
             productToDelete = id;
             const toast = document.getElementById('undoToast');
             toast.className = "show";
-            
-            // Wait 4 seconds then delete for real
-            deleteTimeout = setTimeout(() => {
-                fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory);
-                toast.className = toast.className.replace("show", "");
-            }, 4000);
+            deleteTimeout = setTimeout(() => { fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory); toast.className = toast.className.replace("show", ""); }, 4000);
         }
 
         function undoDelete() {
-            clearTimeout(deleteTimeout); // Stop the timer
+            clearTimeout(deleteTimeout); 
             const row = document.querySelector(`tr[data-id="${productToDelete}"]`);
-            if (row) {
-                row.style.opacity = '1';
-                row.style.pointerEvents = 'auto';
-            }
+            if (row) { row.style.opacity = '1'; row.style.pointerEvents = 'auto'; }
             const toast = document.getElementById('undoToast');
             toast.className = toast.className.replace("show", "");
         }
@@ -367,17 +400,7 @@
             products.forEach(p=>{ 
                 let status = p.stock <= 5 ? '<span style="color:red; font-weight:bold;">Low</span>' : '<span style="color:green; font-weight:bold;">Good</span>';
                 let barColor = p.stock <= 5 ? '#ef4444' : '#10b981';
-                // Added data-id for Undo feature
-                t.innerHTML+=`<tr data-id="${p.id}">
-                    <td style="color:var(--primary); font-weight:bold;">PRD-${p.id}</td>
-                    <td><b>${p.name}</b><br><small style="color:#6b7280;">${p.brand} • ${p.category}</small></td>
-                    <td><b>₹${p.price.toFixed(2)}</b></td>
-                    <td><div class="flex-between" style="font-size:0.8em; margin-bottom:2px;"><span>${p.stock} units</span>${status}</div><div style="height:6px; background:#e5e7eb; border-radius:3px;"><div style="height:100%; width:${Math.min(p.stock,100)}%; background:${barColor}; border-radius:3px;"></div></div></td>
-                    <td style="text-align:right;">
-                        <button onclick="editProduct(${p.id})" style="background:#f59e0b; width:30px; height:30px; padding:0; border-radius:6px; margin-right:5px;"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteProduct(${p.id})" style="background:#ef4444; width:30px; height:30px; padding:0; border-radius:6px;"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`; 
+                t.innerHTML+=`<tr data-id="${p.id}"><td style="color:var(--primary); font-weight:bold;">PRD-${p.id}</td><td><b>${p.name}</b><br><small style="color:#6b7280;">${p.brand} • ${p.category}</small></td><td><b>₹${p.price.toFixed(2)}</b></td><td><div class="flex-between" style="font-size:0.8em; margin-bottom:2px;"><span>${p.stock} units</span>${status}</div><div style="height:6px; background:#e5e7eb; border-radius:3px;"><div style="height:100%; width:${Math.min(p.stock,100)}%; background:${barColor}; border-radius:3px;"></div></div></td><td style="text-align:right;"><button onclick="editProduct(${p.id})" style="background:#f59e0b; width:30px; height:30px; padding:0; border-radius:6px; margin-right:5px;"><i class="fa-solid fa-pen"></i></button><button onclick="deleteProduct(${p.id})" style="background:#ef4444; width:30px; height:30px; padding:0; border-radius:6px;"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
             }); } 
         }
         
@@ -388,7 +411,20 @@
         function uploadExcel(input) { const fd=new FormData(); fd.append("file", input.files[0]); fetch(`${API}/products/upload`,{method:'POST',body:fd}).then(r=>r.text()).then(m=>{ alert(m); loadInventory(); }); }
         function downloadExcel() { window.location.href = `${API}/sales/export`; }
         function downloadReceipt(){ window.open(`/api/sales/${lastSaleId}/pdf`); }
-        async function shareReceipt(){ const e = document.getElementById('shareEmail').value; if(e) alert(`📧 Sending to ${e}...`); try{ await fetch(`/api/sales/${lastSaleId}/share?email=${encodeURIComponent(e)}`, {method:'POST'}); alert('✅ Email Sent'); }catch(x){ alert('Error Sending'); } }
+        
+        // 🚀 UPDATED: UX - IMMEDIATE FEEDBACK
+        function shareReceipt(){ 
+            const email = document.getElementById('shareEmail').value;
+            if (!email) return alert("Please enter an email address.");
+            const btn = event.target;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent!';
+            btn.style.backgroundColor = '#10B981'; 
+            btn.disabled = true;
+            fetch(`${API}/sales/${lastSaleId}/share?email=${encodeURIComponent(email)}`, { method: 'POST' }).catch(e => console.warn(e));
+            setTimeout(() => { btn.innerHTML = originalContent; btn.style.backgroundColor = ''; btn.disabled = false; alert(`✅ Email request sent to ${email}`); }, 1500);
+        }
+
         function printThermal(){ document.getElementById('receipt-date').innerText=new Date().toLocaleDateString().split(',')[0]; document.getElementById('receipt-id').innerText=lastSaleId; document.getElementById('receipt-cashier').innerText=document.getElementById('cashierName').value; document.getElementById('receipt-total').innerText=document.getElementById('cartTotal').innerText; document.getElementById('receipt-items-list').innerHTML=cart.map((i, idx)=>`<tr><td style="text-align:center;">${idx+1}</td><td>${i.name}</td><td style="text-align:right;">${i.price}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">${(i.price*i.quantity).toFixed(2)}</td></tr>`).join(''); window.print(); }
         function filterInventory() { const term = document.getElementById('inventorySearch').value.toLowerCase(); document.querySelectorAll('#inventoryTable tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; }); }
         function detectProductDetails() { const name = document.getElementById('prodName').value.toLowerCase(); const match = [{k:'iphone',b:'Apple',c:'Electronics'}, {k:'nike',b:'Nike',c:'Apparel'}].find(r => name.includes(r.k)); if(match) { document.getElementById('prodBrand').value = match.b; document.getElementById('prodCategory').value = match.c; } }

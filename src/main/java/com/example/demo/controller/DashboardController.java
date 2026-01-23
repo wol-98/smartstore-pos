@@ -25,15 +25,15 @@ public class DashboardController {
     @Autowired private CustomerRepository customerRepo;
     @Autowired private PredictionService predictionService; 
 
+    // ⚡ FAST ENDPOINT (Loads instantly)
     @GetMapping("/stats")
     public Map<String, Object> getStats(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
 
-        // --- 1. Fetch All Data (For General Stats) ---
         List<Sale> allSales = saleRepo.findAll();
         
-        // Date Filtering Logic
+        // Date Filtering
         if (startDate != null && endDate != null && !startDate.isEmpty() && !endDate.isEmpty()) {
             try {
                 LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
@@ -44,54 +44,27 @@ public class DashboardController {
             } catch (Exception e) { System.err.println("Date parse error"); }
         }
 
-        // --- 2. Calculate KPI Cards ---
         BigDecimal totalRevenue = allSales.stream()
                 .map(Sale::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 🚀 FIX: Low Stock Count (Added Null Check)
-        // This prevents the NullPointerException if a product has null stock
+        // Null-safe Low Stock Count
         long lowStockCount = productRepo.findAll().stream()
                 .filter(p -> p.getStock() != null && p.getStock() <= 5) 
                 .count();
 
-        // Top Products
         Map<String, Integer> productSales = allSales.stream()
                 .flatMap(s -> s.getItems().stream()) 
-                .collect(Collectors.groupingBy(
-                        SaleItem::getProductName, 
-                        Collectors.summingInt(SaleItem::getQuantity)
-                ));
+                .collect(Collectors.groupingBy(SaleItem::getProductName, Collectors.summingInt(SaleItem::getQuantity)));
 
         Map<String, Integer> topProducts = productSales.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(5)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        // 🚀 3. VIP Customers (Fetching Top 20)
         List<Customer> topCustomers = new ArrayList<>();
-        try { 
-            topCustomers = customerRepo.findTop20ByOrderByPointsDesc(); 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        try { topCustomers = customerRepo.findTop20ByOrderByPointsDesc(); } catch (Exception e) {}
 
-        // --- 4. 🧠 REAL AI FORECASTING ---
-        // Fetch only last 7 days for the algorithm (Efficiency)
-        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
-        List<Sale> recentSales = saleRepo.findByDateAfter(sevenDaysAgo);
-
-        // Data Prep: Group Sales by Date -> Total Quantity Sold that day
-        Map<LocalDate, Integer> dailyTotals = recentSales.stream()
-            .collect(Collectors.groupingBy(
-                s -> s.getDate().toLocalDate(),
-                Collectors.summingInt(s -> s.getItems().stream().mapToInt(SaleItem::getQuantity).sum())
-            ));
-
-        // Call the AI Engine
-        int predictedSales = predictionService.predictNextDaySales(dailyTotals);
-        
-        // --- 5. Assemble Response ---
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalRevenue", totalRevenue);
         stats.put("totalOrders", allSales.size());
@@ -99,10 +72,25 @@ public class DashboardController {
         stats.put("topProducts", topProducts);
         stats.put("topCustomers", topCustomers);
         
-        // AI Data
-        stats.put("predictedSales", predictedSales);
-        stats.put("aiStatus", predictedSales > 0 ? "ML Powered" : "Gathering Data"); 
-
         return stats;
+    }
+
+    // 🧠 SLOW ENDPOINT (AI Calculation - Called separately)
+    @GetMapping("/stats/ai")
+    public Map<String, Object> getAiStats() {
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<Sale> recentSales = saleRepo.findByDateAfter(sevenDaysAgo);
+        
+        Map<LocalDate, Integer> dailyTotals = recentSales.stream()
+            .collect(Collectors.groupingBy(
+                s -> s.getDate().toLocalDate(),
+                Collectors.summingInt(s -> s.getItems().stream().mapToInt(SaleItem::getQuantity).sum())
+            ));
+
+        int predictedSales = predictionService.predictNextDaySales(dailyTotals);
+        return Map.of(
+            "predictedSales", predictedSales, 
+            "aiStatus", predictedSales > 0 ? "ML Powered" : "Gathering Data"
+        );
     }
 }

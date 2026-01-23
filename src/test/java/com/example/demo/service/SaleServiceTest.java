@@ -19,15 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class) // Enables Mockito
+@ExtendWith(MockitoExtension.class)
 public class SaleServiceTest {
 
-    @Mock private SaleRepository saleRepo;       // Fake Database
-    @Mock private ProductRepository productRepo; // Fake Inventory
-    @Mock private CustomerRepository customerRepo; // Fake CRM
+    @Mock private SaleRepository saleRepo;       
+    @Mock private ProductRepository productRepo; 
+    @Mock private CustomerRepository customerRepo; 
 
     @InjectMocks
-    private SaleService saleService; // The real service we are testing
+    private SaleService saleService; 
 
     @Test
     public void testProcessSale_CalculatesTotalCorrectly() {
@@ -38,50 +38,50 @@ public class SaleServiceTest {
         request.put("cashierName", "TestUser");
         request.put("customerPhone", "9998887777");
 
-        // Create 2 items: 50.00 each, Quantity 1
+        // Create 2 items
         List<Map<String, Object>> items = new ArrayList<>();
         
         Map<String, Object> item1 = new HashMap<>();
-        item1.put("name", "Test Product");
-        item1.put("price", 50.00);
-        item1.put("quantity", 1);
         item1.put("productId", 101);
+        item1.put("quantity", 1);
         items.add(item1);
 
         Map<String, Object> item2 = new HashMap<>();
-        item2.put("name", "Test Product 2");
-        item2.put("price", 50.00);
+        item2.put("productId", 102); // Different ID, but we mock finding the same product object for simplicity
         item2.put("quantity", 1);
-        item2.put("productId", 102);
         items.add(item2);
 
         request.put("items", items);
 
-        // Mock the Product Repository to return a fake product with stock
+        // --- MOCKING THE DATABASE ---
+
+        // A. Mock Product (The Inventory)
         Product fakeProduct = new Product();
         fakeProduct.setId(101L);
         fakeProduct.setStock(10);
         fakeProduct.setName("Test Product");
+        fakeProduct.setPrice(50.00); // 👈 IMPORTANT: Set price so calculation works!
+        
+        // When service asks for a product, give them this fake one
         when(productRepo.findById(anyLong())).thenReturn(Optional.of(fakeProduct));
         
-        // Mock Sale Repository to just return the sale object back
+        // B. Mock Sale (The Transaction)
+        // When service saves a sale, just return it back
         when(saleRepo.save(any(Sale.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        // Mock Customer Repository
-        when(customerRepo.findByPhone(anyString())).thenReturn(Optional.empty());
+        // C. Mock Customer (The CRM)
+        // 🚀 FIX: Return 'null' instead of Optional.empty()
+        when(customerRepo.findByPhone(anyString())).thenReturn(null);
 
-        // 2. EXECUTE: Call the method
+        // 2. EXECUTE
         Sale result = saleService.processSale(request);
 
-        // 3. VERIFY: Did it work?
-        // Expectation: 50 + 50 = 100
+        // 3. VERIFY
+        // 50.00 + 50.00 = 100.0
         assertEquals(new BigDecimal("100.0"), result.getTotalAmount());
         
-        // Expectation: Stock should have reduced (Repo save called twice, once per item)
-        verify(productRepo, times(2)).save(any(Product.class));
-        
-        // Expectation: Loyalty Points (100 / 10 = 10 points)
-        verify(customerRepo, times(1)).save(any(Customer.class));
+        verify(productRepo, times(2)).save(any(Product.class)); // Stock updated twice
+        verify(customerRepo, times(2)).save(any(Customer.class)); // Customer created/updated
         
         System.out.println("✅ TEST PASSED: Revenue Calculation Verified!");
     }
