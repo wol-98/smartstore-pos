@@ -23,7 +23,7 @@ public class DashboardController {
     @Autowired private SaleRepository saleRepo;
     @Autowired private ProductRepository productRepo;
     @Autowired private CustomerRepository customerRepo;
-    @Autowired private PredictionService predictionService; // 👈 Inject the Brain
+    @Autowired private PredictionService predictionService; 
 
     @GetMapping("/stats")
     public Map<String, Object> getStats(
@@ -49,9 +49,11 @@ public class DashboardController {
                 .map(Sale::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Low Stock Count
+        // 🚀 FIX: Low Stock Count (Added Null Check)
+        // This prevents the NullPointerException if a product has null stock
         long lowStockCount = productRepo.findAll().stream()
-                .filter(p -> p.getStock() <= 5).count();
+                .filter(p -> p.getStock() != null && p.getStock() <= 5) 
+                .count();
 
         // Top Products
         Map<String, Integer> productSales = allSales.stream()
@@ -66,12 +68,15 @@ public class DashboardController {
                 .limit(5)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        // Top Customers
+        // 🚀 3. VIP Customers (Fetching Top 20)
         List<Customer> topCustomers = new ArrayList<>();
-        try { topCustomers = customerRepo.findTop5ByOrderByPointsDesc(); } catch (Exception e) {}
+        try { 
+            topCustomers = customerRepo.findTop20ByOrderByPointsDesc(); 
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-
-        // --- 3. 🧠 REAL AI FORECASTING ---
+        // --- 4. 🧠 REAL AI FORECASTING ---
         // Fetch only last 7 days for the algorithm (Efficiency)
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         List<Sale> recentSales = saleRepo.findByDateAfter(sevenDaysAgo);
@@ -86,7 +91,7 @@ public class DashboardController {
         // Call the AI Engine
         int predictedSales = predictionService.predictNextDaySales(dailyTotals);
         
-        // --- 4. Assemble Response ---
+        // --- 5. Assemble Response ---
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalRevenue", totalRevenue);
         stats.put("totalOrders", allSales.size());

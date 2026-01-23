@@ -28,7 +28,7 @@ public class EmailService {
             helper.setFrom("SmartStore POS <grabmeonly@gmail.com>");
             helper.setTo(toEmail);
             helper.setSubject("Receipt #" + sale.getId());
-            helper.setText("<h1>Thank you!</h1><p>Please find your receipt attached.</p>", true);
+            helper.setText("<h1>Thank you!</h1><p>Please find your receipt attached here.</p>", true);
 
             ByteArrayInputStream pdfStream = pdfService.generateInvoice(sale);
             byte[] pdfBytes = pdfStream.readAllBytes(); 

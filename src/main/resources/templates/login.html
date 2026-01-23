@@ -2,95 +2,209 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Enterprise Login</title>
+    <title>Enterprise Login | SmartStore</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        body {
-            background: #f1f5f9; /* Matches Dashboard Background */
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #334155;
+        /* --- SHARED PRO THEME VARIABLES (Matches Dashboard) --- */
+        :root { 
+            --primary: #7e22ce; --primary-dark: #6b21a8; 
+            --danger: #EF4444; --warning: #F59E0B; --dark: #1e293b; 
+            
+            /* Glassmorphism Variables */
+            --card-bg: rgba(255, 255, 255, 0.75); 
+            --border: rgba(255, 255, 255, 0.6); 
+            --text-main: #1f2937; --text-muted: #6b7280;
+            --input-bg: rgba(255, 255, 255, 0.9);
         }
+
+        /* 🚀 ANIMATED BACKGROUND */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            color: var(--text-main); margin: 0; height: 100vh; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: linear-gradient(-45deg, #f3f4f6, #e9d5ff, #f3f4f6, #c4b5fd);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            transition: background 0.5s ease;
+            overflow: hidden;
+        }
+
+        /* 🌑 DARK MODE OVERRIDES */
+        body.dark-mode {
+            background: linear-gradient(-45deg, #0f172a, #312e81, #1e1b4b, #312e81);
+            background-size: 400% 400%;
+            --text-main: #f3f4f6; --text-muted: #9ca3af;
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --border: rgba(255, 255, 255, 0.1);
+            --dark: #f3f4f6;
+            --input-bg: rgba(15, 23, 42, 0.6);
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 🚀 GLASS LOGIN CARD */
         .login-card {
-            background: white;
+            background: var(--card-bg);
             padding: 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
             width: 380px;
             text-align: center;
-            border: 1px solid #e2e8f0;
+            position: relative;
+            z-index: 10;
+            transition: transform 0.3s ease;
         }
-        h1 { margin: 0 0 5px 0; color: #1e293b; font-weight: 800; letter-spacing: -0.5px; }
-        p { margin: 0 0 25px 0; color: #64748b; font-size: 0.9em; }
+        
+        .login-card:hover { transform: translateY(-5px); }
+
+        h1 { margin: 0 0 5px 0; color: var(--dark); font-weight: 800; letter-spacing: -0.5px; font-size: 1.8em; }
+        p { margin: 0 0 25px 0; color: var(--text-muted); font-size: 0.9em; }
+        
+        /* INPUTS */
+        .input-group { position: relative; margin-bottom: 15px; }
         
         input {
-            width: 100%;
-            padding: 12px 15px;
-            margin-bottom: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            box-sizing: border-box;
-            background: #f8fafc;
-            font-size: 0.95em;
-            transition: all 0.2s;
+            width: 100%; padding: 12px 15px;
+            border: 1px solid var(--border); border-radius: 10px;
+            box-sizing: border-box; background: var(--input-bg);
+            font-size: 0.95em; color: var(--text-main);
+            transition: all 0.2s; outline: none;
         }
-        input:focus { outline: none; border-color: #4F46E5; background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(126, 34, 206, 0.2); }
 
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #4F46E5; /* Matches Dashboard Primary */
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1em;
-            cursor: pointer;
-            transition: all 0.2s;
+        /* PASSWORD TOGGLE EYE */
+        .toggle-password {
+            position: absolute; right: 15px; top: 13px;
+            color: var(--text-muted); cursor: pointer;
+            font-size: 0.9em;
         }
-        button:hover { background: #4338ca; transform: translateY(-1px); }
+
+        /* BUTTONS */
+        button {
+            width: 100%; padding: 12px;
+            background: var(--primary); color: white;
+            border: none; border-radius: 10px;
+            font-weight: 600; font-size: 1em;
+            cursor: pointer; transition: all 0.2s;
+            margin-top: 10px;
+        }
+        button:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
         
         .error-msg {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.85em;
-            margin-bottom: 20px;
-            display: none; 
-            border: 1px solid #fecaca;
+            background: rgba(254, 226, 226, 0.9); color: #dc2626;
+            padding: 10px; border-radius: 8px; font-size: 0.85em;
+            margin-bottom: 20px; display: none; border: 1px solid #fecaca;
+        }
+        body.dark-mode .error-msg { background: rgba(127, 29, 29, 0.5); border-color: #7f1d1d; color: #fca5a5; }
+
+        /* THEME TOGGLE (Absolute Top Right) */
+        .theme-toggle-btn {
+            position: absolute; top: 20px; right: 20px;
+            background: var(--card-bg); border: 1px solid var(--border);
+            padding: 10px; border-radius: 50%;
+            cursor: pointer; color: var(--text-main);
+            backdrop-filter: blur(5px);
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
         }
     </style>
 </head>
 <body>
 
+    <button class="theme-toggle-btn" onclick="toggleTheme()">
+        <i id="themeIcon" class="fa-solid fa-moon"></i>
+    </button>
+
     <div class="login-card">
+        <div style="font-size: 3em; color: var(--primary); margin-bottom: 10px;">
+            <i class="fa-solid fa-cube"></i>
+        </div>
+        
         <h1>SmartStore</h1>
         <p>Enterprise Management Suite</p>
 
         <div id="error-box" class="error-msg">
-            Invalid Credentials. Please try again.
+            <i class="fa-solid fa-circle-exclamation"></i> Invalid Credentials
         </div>
 
-        <form action="/login" method="post">
-            <input type="text" name="username" placeholder="Username" required autofocus>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Sign In</button>
+        <form action="/login" method="post" onsubmit="handleLogin(this)">
+            <div class="input-group">
+                <input type="text" name="username" placeholder="Username" required autofocus>
+            </div>
+            
+            <div class="input-group">
+                <input type="password" id="passwordField" name="password" placeholder="Password" required>
+                <i class="fa-solid fa-eye toggle-password" onclick="togglePassword()"></i>
+            </div>
+            
+            <button type="submit" id="loginBtn">Sign In</button>
         </form>
         
-        <div style="margin-top: 25px; font-size: 0.8em; color: #94a3b8;">
-            System Status: <span style="color:#10B981; font-weight:600;">● Online</span>
+        <div style="margin-top: 25px; font-size: 0.8em; color: var(--text-muted);">
+            System Status: <span style="color:var(--secondary); font-weight:600;">● Online</span>
         </div>
     </div>
 
     <script>
-        // Show error message if URL contains ?error
+        // 1. Check for Error
         if (window.location.search.includes('error')) {
             document.getElementById('error-box').style.display = 'block';
+        }
+
+        // 2. Toggle Password Visibility
+        function togglePassword() {
+            const input = document.getElementById('passwordField');
+            const icon = document.querySelector('.toggle-password');
+            if (input.type === "password") {
+                input.type = "text";
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = "password";
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // 3. Handle Login Button State (Loading...)
+        function handleLogin(form) {
+            const btn = document.getElementById('loginBtn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+            btn.disabled = true;
+            // Allow form to submit naturally
+        }
+
+        // 4. Theme Toggle (Sync with Dashboard)
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            const icon = document.getElementById('themeIcon');
+            
+            if (isDark) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                icon.style.color = "#F59E0B"; // Yellow Sun
+                // Optional: Save preference to LocalStorage
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                icon.style.color = "";
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Load saved theme on startup
+        if (localStorage.getItem('theme') === 'dark') {
+            toggleTheme(); // Apply dark mode immediately
         }
     </script>
 </body>

@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Optional;
 
 @Service
 public class PdfService {
@@ -95,10 +94,8 @@ public class PdfService {
 
             table.addCell(createStyledHeader("S/No.", tableHeaderFont));
             table.addCell(createStyledHeader("Description", tableHeaderFont));
-            // ✅ CHANGED: Rs. instead of $
             table.addCell(createStyledHeader("Unit Price", tableHeaderFont)); 
             table.addCell(createStyledHeader("Qty", tableHeaderFont));
-            // ✅ CHANGED: Rs. instead of $
             table.addCell(createStyledHeader("Total (Rs.)", tableHeaderFont));
 
             int i = 1;
@@ -118,25 +115,22 @@ public class PdfService {
             summaryTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
             summaryTable.setSpacingBefore(10);
             summaryTable.addCell(createSummaryCell("Grand Total", boldFont));
-            // ✅ CHANGED: Rs. Format
             summaryTable.addCell(createSummaryCell("Rs. " + df.format(sale.getTotalAmount()), boldFont));
             document.add(summaryTable);
             
             // --- AMOUNT IN WORDS ---
             document.add(new Paragraph(" "));
             String moneyString = convertToWords(sale.getTotalAmount().longValue());
-            // ✅ CHANGED: Rupees Only
             Paragraph words = new Paragraph("Amount In Words: " + moneyString + " Rupees Only", 
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY));
             document.add(words);
 
-            // --- LOYALTY FOOTER ---
+            // --- LOYALTY FOOTER (FIXED) ---
             if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
-                Optional<com.example.demo.model.Customer> custOpt = customerRepo.findByPhone(sale.getCustomerPhone());
+                // 🛠️ FIX: Direct call instead of Optional
+                com.example.demo.model.Customer cust = customerRepo.findByPhone(sale.getCustomerPhone());
                 
-                if(custOpt.isPresent()) {
-                    com.example.demo.model.Customer cust = custOpt.get();
-                    
+                if(cust != null) {
                     document.add(new Paragraph(" ")); 
                     
                     PdfPTable loyaltyTable = new PdfPTable(1);

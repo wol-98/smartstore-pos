@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.model.Customer;
+import com.example.demo.model.Product;
 import com.example.demo.model.Sale;
 import com.example.demo.model.SaleItem;
 import com.example.demo.repository.CustomerRepository;
@@ -19,69 +20,87 @@ import java.util.Map;
 @Service
 public class SaleService {
 
-    @Autowired private SaleRepository saleRepo;
-    @Autowired private ProductRepository productRepo;
-    @Autowired private CustomerRepository customerRepo;
+    @Autowired
+    private SaleRepository saleRepo;
 
-    @Transactional // Ensures if one part fails (e.g. Stock update), the whole sale cancels
+    @Autowired
+    private ProductRepository productRepo;
+
+    @Autowired
+    private CustomerRepository customerRepo;
+
+    @Transactional
     public Sale processSale(Map<String, Object> saleData) {
-        Sale sale = new Sale();
-        sale.setPaymentMethod((String) saleData.get("paymentMethod"));
-        sale.setStatus((String) saleData.get("status"));
-        sale.setCashierName((String) saleData.get("cashierName"));
-        sale.setDate(LocalDateTime.now());
-        
-        String phone = (String) saleData.get("customerPhone");
-        sale.setCustomerPhone(phone);
-
+        // 1. Extract Data from JSON
+        String cashierName = (String) saleData.get("cashierName");
+        String customerPhone = (String) saleData.get("customerPhone");
+        String paymentMethod = (String) saleData.get("paymentMethod");
+        String status = (String) saleData.get("status");
         List<Map<String, Object>> itemsData = (List<Map<String, Object>>) saleData.get("items");
-        BigDecimal total = BigDecimal.ZERO;
-        List<SaleItem> saleItems = new ArrayList<>();
 
-        for (Map<String, Object> itemData : itemsData) {
-            SaleItem item = new SaleItem();
-            item.setProductName((String) itemData.get("name"));
+        // 2. Handle Customer (The Fix 🛠️)
+        // We check if phone exists. If yes, look up. If null/empty, it's a guest.
+        if (customerPhone != null && !customerPhone.isEmpty()) {
+            Customer customer = customerRepo.findByPhone(customerPhone);
             
-            // Handle number conversion safely
-            double priceVal = ((Number) itemData.get("price")).doubleValue();
-            item.setPrice(BigDecimal.valueOf(priceVal));
-
-            int qty = ((Number) itemData.get("quantity")).intValue();
-            item.setQuantity(qty);
-            
-            item.setSale(sale);
-            saleItems.add(item);
-
-            // 🧠 STOCK REDUCTION LOGIC
-            int prodId = ((Number) itemData.get("productId")).intValue();
-            productRepo.findById((long) prodId).ifPresent(p -> {
-                if(p.getStock() >= qty) {
-                    p.setStock(p.getStock() - qty);
-                    productRepo.save(p);
-                } else {
-                    throw new RuntimeException("Insufficient Stock for: " + p.getName());
-                }
-            });
-            
-            total = total.add(item.getPrice().multiply(BigDecimal.valueOf(qty)));
-        }
-        
-        sale.setItems(saleItems);
-        sale.setTotalAmount(total);
-
-        // 🧠 LOYALTY POINTS LOGIC
-        if (phone != null && !phone.isEmpty()) {
-            int earnedPoints = total.intValue() / 10;
-            Customer cust = customerRepo.findByPhone(phone).orElse(new Customer());
-            
-            if(cust.getPhone() == null) {
-                cust.setPhone(phone);
-                cust.setName("Loyal Customer");
-                cust.setPoints(0);
+            if (customer == null) {
+                // Create New Customer if not found
+                customer = new Customer();
+                customer.setName("New Customer"); // You can add a name field to the form later
+                customer.setPhone(customerPhone);
+                customer.setPoints(0);
+                customerRepo.save(customer);
             }
-            cust.setPoints(cust.getPoints() + earnedPoints);
-            customerRepo.save(cust);
+            
+            // Add Loyalty Points (e.g., 10 points per sale)
+            customer.setPoints(customer.getPoints() + 10);
+            customerRepo.save(customer);
         }
+
+        // 3. Create Sale Object
+        Sale sale = new Sale();
+        sale.setCashierName(cashierName);
+        sale.setCustomerPhone(customerPhone);
+        sale.setPaymentMethod(paymentMethod);
+        sale.setStatus(status);
+        sale.setDate(LocalDateTime.now());
+
+        List<SaleItem> saleItems = new ArrayList<>();
+        BigDecimal grandTotal = BigDecimal.ZERO;
+
+        // 4. Process Items & Deduct Stock
+        for (Map<String, Object> itemData : itemsData) {
+            Long prodId = Long.valueOf(itemData.get("productId").toString());
+            int quantity = Integer.parseInt(itemData.get("quantity").toString());
+
+            Product product = productRepo.findById(prodId)
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + prodId));
+
+            if (product.getStock() < quantity) {
+                throw new RuntimeException("Out of Stock: " + product.getName());
+            }
+
+            // Deduct Stock
+            product.setStock(product.getStock() - quantity);
+            productRepo.save(product);
+
+            // Create Sale Item
+            SaleItem saleItem = new SaleItem();
+            saleItem.setProductId(product.getId());
+            saleItem.setProductName(product.getName());
+            saleItem.setQuantity(quantity);
+            saleItem.setPrice(BigDecimal.valueOf(product.getPrice()));
+            saleItem.setSale(sale); // Link back to parent
+            
+            saleItems.add(saleItem);
+
+            // Add to Total
+            BigDecimal itemTotal = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(quantity));
+            grandTotal = grandTotal.add(itemTotal);
+        }
+
+        sale.setItems(saleItems);
+        sale.setTotalAmount(grandTotal);
 
         return saleRepo.save(sale);
     }
