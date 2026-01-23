@@ -48,7 +48,7 @@ public class PdfService {
             storeName.setAlignment(Element.ALIGN_CENTER);
             document.add(storeName);
 
-            Paragraph storeAddr = new Paragraph("Xavier's Innovation Drive, TechPioneers, 400090- Mumbai\n9089853298 | www.smartstore.com\nBandra Kurla Complex", subHeaderFont);
+            Paragraph storeAddr = new Paragraph("Tech Innovation Drive, TechPioneers, 400090- Mumbai\n9089853298 | www.smartstore.com\nBandra Kurla Complex", subHeaderFont);
             storeAddr.setAlignment(Element.ALIGN_CENTER);
             storeAddr.setSpacingAfter(15);
             document.add(storeAddr);
