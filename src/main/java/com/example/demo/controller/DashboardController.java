@@ -23,41 +23,38 @@ public class DashboardController {
     @Autowired private SaleRepository saleRepo;
     @Autowired private ProductRepository productRepo;
     @Autowired private CustomerRepository customerRepo;
-    @Autowired private PredictionService predictionService; 
+    @Autowired private PredictionService predictionService; // 👈 Inject the Brain
 
     @GetMapping("/stats")
     public Map<String, Object> getStats(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
 
-        List<Sale> sales = saleRepo.findAll();
+        // --- 1. Fetch All Data (For General Stats) ---
+        List<Sale> allSales = saleRepo.findAll();
         
-        // 1. Date Filtering
+        // Date Filtering Logic
         if (startDate != null && endDate != null && !startDate.isEmpty() && !endDate.isEmpty()) {
             try {
                 LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
                 LocalDateTime end = LocalDate.parse(endDate).atTime(23, 59, 59);
-                sales = sales.stream()
+                allSales = allSales.stream()
                         .filter(s -> s.getDate().isAfter(start) && s.getDate().isBefore(end))
                         .collect(Collectors.toList());
-            } catch (Exception e) {
-                System.err.println("Date parse error, ignoring filter");
-            }
+            } catch (Exception e) { System.err.println("Date parse error"); }
         }
 
-        // 2. Total Revenue
-        BigDecimal totalRevenue = sales.stream()
+        // --- 2. Calculate KPI Cards ---
+        BigDecimal totalRevenue = allSales.stream()
                 .map(Sale::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. Low Stock (Safe Method: Filter in Java)
-        // Assumes "Low Stock" is anything 5 or less
+        // Low Stock Count
         long lowStockCount = productRepo.findAll().stream()
-                .filter(p -> p.getStock() <= 5)
-                .count();
+                .filter(p -> p.getStock() <= 5).count();
 
-        // 4. Top Products Calculation
-        Map<String, Integer> productSales = sales.stream()
+        // Top Products
+        Map<String, Integer> productSales = allSales.stream()
                 .flatMap(s -> s.getItems().stream()) 
                 .collect(Collectors.groupingBy(
                         SaleItem::getProductName, 
@@ -67,43 +64,39 @@ public class DashboardController {
         Map<String, Integer> topProducts = productSales.entrySet().stream()
                 .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
                 .limit(5)
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey, 
-                        Map.Entry::getValue, 
-                        (e1, e2) -> e1, 
-                        LinkedHashMap::new
-                ));
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        // 5. Top Customers (Safe Fallback if repo method missing)
+        // Top Customers
         List<Customer> topCustomers = new ArrayList<>();
-        try {
-            // If you implemented the custom query in CustomerRepository, this runs
-            topCustomers = customerRepo.findTop5ByOrderByPointsDesc();
-        } catch (Exception e) {
-            // Fallback: Just return empty list to prevent crash
-        }
+        try { topCustomers = customerRepo.findTop5ByOrderByPointsDesc(); } catch (Exception e) {}
 
-        // 6. AI Data Prep
-        List<Map<String, Object>> aiData = sales.stream()
-            .map(s -> {
-                Map<String, Object> m = new HashMap<>();
-                m.put("date", s.getDate().toLocalDate().toString());
-                m.put("qty", s.getItems().stream().mapToInt(SaleItem::getQuantity).sum());
-                return m;
-            }).collect(Collectors.toList());
 
-        // 7. AI Prediction
-        int predictedSales = predictionService.getPredictedSales(aiData);
-        String aiStatus = predictedSales > 0 ? "online" : "offline"; 
+        // --- 3. 🧠 REAL AI FORECASTING ---
+        // Fetch only last 7 days for the algorithm (Efficiency)
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<Sale> recentSales = saleRepo.findByDateAfter(sevenDaysAgo);
 
+        // Data Prep: Group Sales by Date -> Total Quantity Sold that day
+        Map<LocalDate, Integer> dailyTotals = recentSales.stream()
+            .collect(Collectors.groupingBy(
+                s -> s.getDate().toLocalDate(),
+                Collectors.summingInt(s -> s.getItems().stream().mapToInt(SaleItem::getQuantity).sum())
+            ));
+
+        // Call the AI Engine
+        int predictedSales = predictionService.predictNextDaySales(dailyTotals);
+        
+        // --- 4. Assemble Response ---
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalRevenue", totalRevenue);
-        stats.put("totalOrders", sales.size());
+        stats.put("totalOrders", allSales.size());
         stats.put("lowStockCount", lowStockCount);
         stats.put("topProducts", topProducts);
         stats.put("topCustomers", topCustomers);
+        
+        // AI Data
         stats.put("predictedSales", predictedSales);
-        stats.put("aiStatus", aiStatus); 
+        stats.put("aiStatus", predictedSales > 0 ? "ML Powered" : "Gathering Data"); 
 
         return stats;
     }
