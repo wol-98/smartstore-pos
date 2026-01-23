@@ -149,45 +149,24 @@
         .btn-icon { width: 36px; height: 36px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0; margin-right: 5px; }
 
         /* ==========================================
-           🖨️ THERMAL PRINTER MODE (FIXED)
+           🖨️ THERMAL PRINTER MODE
            ========================================== */
-        #thermal-receipt { display: none; } /* Hidden on screen */
+        #thermal-receipt { display: none; } 
 
         @media print {
-            /* 1. Hide EVERYTHING else */
             body * { visibility: hidden; height: 0; overflow: hidden; }
-            
-            /* 2. CRITICAL FIX: Force the receipt to display */
             #thermal-receipt { 
-                display: block !important; /* <--- THIS WAS MISSING */
+                display: block !important; 
                 visibility: visible;
                 position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                margin: 0;
-                padding: 0;
+                left: 0; top: 0; width: 100%;
                 font-family: 'Courier New', monospace;
-                color: black;
-                background: white; /* Ensure background is white */
-                z-index: 9999; /* Force it to top */
+                background: white; z-index: 9999;
             }
-
-            /* 3. Ensure children are visible */
-            #thermal-receipt * { 
-                visibility: visible; 
-                height: auto; 
-                overflow: visible; 
-            }
-            
-            /* Clean up layout for print */
+            #thermal-receipt * { visibility: visible; height: auto; overflow: visible; }
             .receipt-header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
             .receipt-item { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; }
             .receipt-footer { text-align: center; margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: 10px; }
-            .receipt-bold { font-weight: bold; }
-            
-            /* Hide browser default header/footer if possible (optional) */
-            @page { margin: 0; size: auto; }
         }
     </style>
 </head>
@@ -206,6 +185,11 @@
                 <input type="date" id="filterEnd" onchange="loadDashboard()" style="border:none; background:transparent; width:auto; padding:5px 10px;">
             </div>
             
+            <input type="file" id="excelInput" hidden accept=".xlsx, .xls" onchange="uploadExcel(this)">
+            <button id="importBtn" onclick="document.getElementById('excelInput').click()" class="btn-primary" style="width:auto; padding: 10px 20px; background-color: #f59e0b;">
+                <i class="fa-solid fa-file-import"></i> Import Excel
+            </button>
+
             <button id="exportBtn" onclick="downloadExcel()" class="btn-success" style="width:auto; padding: 10px 20px;"><i class="fa-solid fa-file-excel"></i> Export Report</button>
 
             <div class="user-badge">
@@ -221,7 +205,6 @@
     </div>
 
     <div id="dashboardSection">
-        
         <div class="grid-dashboard-top">
             <div class="card stat-card stat-revenue">
                 <h3>Total Revenue</h3>
@@ -238,7 +221,6 @@
                 <h2 id="statLowStock">0</h2>
                 <div style="margin-top:10px; font-size:0.85em; color:var(--danger); font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Action Needed</div>
             </div>
-            
             <div class="card stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white;">
                 <h3 style="color: rgba(255,255,255,0.9); margin-bottom:5px;">AI Forecast</h3>
                 <div style="font-size:0.8em; opacity:0.8; margin-bottom:5px;">Next 7 Days</div>
@@ -252,36 +234,23 @@
         <div class="grid-dashboard-bottom">
             <div class="card">
                 <h3 style="margin-bottom:15px;">Sales Activity</h3>
-                <div style="height:250px;">
-                    <canvas id="salesChart"></canvas>
-                </div>
+                <div style="height:250px;"><canvas id="salesChart"></canvas></div>
             </div>
-            
             <div class="card">
                 <h3 style="margin-bottom:15px;">Best Sellers</h3>
-                <div style="height:250px; display:flex; justify-content:center;">
-                    <canvas id="productsChart"></canvas>
-                </div>
+                <div style="height:250px; display:flex; justify-content:center;"><canvas id="productsChart"></canvas></div>
             </div>
-
             <div class="card">
                 <h3 style="margin-bottom:15px;">🏆 VIP Customers</h3>
-                <table style="margin-top:0;">
-                    <tbody id="vipTable">
-                        <tr><td style="color:var(--text-muted); text-align:center;">Loading...</td></tr>
-                    </tbody>
-                </table>
+                <table style="margin-top:0;"><tbody id="vipTable"><tr><td style="color:var(--text-muted); text-align:center;">Loading...</td></tr></tbody></table>
             </div>
         </div>
-
     </div>
 
     <div class="grid-main">
-        
         <div class="card" id="inventorySection">
             <div class="flex-between" style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--border);">
                 <h2 style="margin:0;"><i class="fa-solid fa-boxes-stacked" style="color:var(--text-muted); margin-right:10px;"></i> Inventory Master</h2>
-                
                 <div class="search-bar-container">
                     <i class="fa-solid fa-search"></i>
                     <input type="text" id="inventorySearch" placeholder="Search products..." onkeyup="filterInventory()">
@@ -326,12 +295,7 @@
 
             <table style="width:100%">
                 <thead>
-                    <tr>
-                        <th width="10%">ID</th>
-                        <th width="30%">Product</th>
-                        <th width="15%">Price</th>
-                        <th width="25%">Stock Health</th> <th width="20%" style="text-align:right;">Actions</th>
-                    </tr>
+                    <tr><th width="10%">ID</th><th width="30%">Product</th><th width="15%">Price</th><th width="25%">Stock Health</th> <th width="20%" style="text-align:right;">Actions</th></tr>
                 </thead>
                 <tbody id="inventoryTable"></tbody>
             </table>
@@ -349,10 +313,7 @@
             </div>
             
             <div id="reader" style="display:none; border-radius:10px; overflow:hidden; margin-bottom:15px;"></div>
-            
-            <button class="btn-primary" onclick="toggleScanner()" style="background: #8B5CF6; margin-bottom:15px;">
-                <i class="fa-solid fa-qrcode"></i> Scan Product QR
-            </button>
+            <button class="btn-primary" onclick="toggleScanner()" style="background: #8B5CF6; margin-bottom:15px;"><i class="fa-solid fa-qrcode"></i> Scan Product QR</button>
 
             <div style="display:grid; grid-template-columns: 2fr 1fr auto; gap:10px; margin-bottom:15px;">
                 <select id="saleProductSelect"></select>
@@ -372,38 +333,29 @@
                     <span style="font-weight:600; color:var(--text-muted);">Grand Total</span>
                     <span style="font-size:1.8em; font-weight:800; color:var(--dark);">₹<span id="cartTotal">0.00</span></span>
                 </div>
-
                 <div style="margin-bottom:15px;">
                     <label style="font-size:0.8em; font-weight:600; color:var(--text-muted);">Customer Loyalty (Phone)</label>
                     <div style="display:flex; gap:10px;">
-                        <input type="text" id="custPhone" placeholder="Enter Phone Number (e.g. 9876543210)">
+                        <input type="text" id="custPhone" placeholder="Enter Phone Number">
                         <div style="padding:10px; background:#e0e7ff; color:var(--primary); border-radius:8px; font-size:0.9em; font-weight:bold; white-space:nowrap;">
                             <i class="fa-solid fa-star"></i> Points
                         </div>
                     </div>
                 </div>
-
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:15px;">
                     <select id="payMethod"><option>Cash</option><option>UPI</option><option>Card</option></select>
                     <select id="payStatus"><option>Paid</option><option>Pending</option></select>
                 </div>
-
-                <button id="btnCheckout" class="btn-success" onclick="checkout()" style="padding:15px; font-size:1.1em;">
-                    Complete Transaction <i class="fa-solid fa-arrow-right" style="margin-left:5px;"></i>
-                </button>
+                <button id="btnCheckout" class="btn-success" onclick="checkout()" style="padding:15px; font-size:1.1em;">Complete Transaction <i class="fa-solid fa-arrow-right" style="margin-left:5px;"></i></button>
                 
                 <div id="postSale" class="hidden" style="text-align:center; padding:20px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; margin-top:15px;">
                     <div style="color:var(--secondary); font-size:3em; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i></div>
                     <h3 style="margin:0 0 10px 0; color:#15803d;">Sale Confirmed!</h3>
-                    
                     <div style="display:flex; flex-direction: column; gap:10px;">
-                        <button onclick="shareReceipt()" style="background:#4F46E5; padding:12px; font-size:1.1em;">
-                            <i class="fa-solid fa-share-nodes"></i> Share Invoice (Email / WhatsApp)
-                        </button>
-                        
+                        <button onclick="shareReceipt()" style="background:#4F46E5; padding:12px; font-size:1.1em;"><i class="fa-solid fa-share-nodes"></i> Share Invoice</button>
                         <div style="display:flex; gap:10px;">
-                            <button onclick="downloadReceipt()" style="background:#15803d; width:auto;"><i class="fa-solid fa-file-pdf"></i> Download PDF</button>
-                            <button onclick="printThermal()" style="background:#0f172a; width:auto;"><i class="fa-solid fa-print"></i> Thermal Print</button>
+                            <button onclick="downloadReceipt()" style="background:#15803d; width:auto;"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                            <button onclick="printThermal()" style="background:#0f172a; width:auto;"><i class="fa-solid fa-print"></i> Thermal</button>
                             <button onclick="startNewSale()" style="background:var(--text-muted); width:auto;">New Sale</button>
                         </div>
                     </div>
@@ -419,20 +371,11 @@
             <div id="receipt-date">Date: --/--/----</div>
             <div>Sale ID: <span id="receipt-id">#000</span></div>
         </div>
-        
-        <div id="receipt-items-list" style="margin: 10px 0;">
-            </div>
-
+        <div id="receipt-items-list" style="margin: 10px 0;"></div>
         <div style="border-top: 1px dashed #000; padding-top: 5px; display:flex; justify-content:space-between; font-weight:bold;">
-            <span>TOTAL</span>
-            <span id="receipt-total">₹0.00</span>
+            <span>TOTAL</span><span id="receipt-total">₹0.00</span>
         </div>
-        
-        <div class="receipt-footer">
-            <p>Thank you for shopping!</p>
-            <p>No Returns without Receipt</p>
-            <p>www.smartstore.app</p>
-        </div>
+        <div class="receipt-footer"><p>Thank you for shopping!</p></div>
     </div>
 
     <script>
@@ -442,8 +385,35 @@
         
         document.addEventListener('DOMContentLoaded', () => { 
             loadCurrentUser(); 
-            setPosDate(); // Initialize Date
+            setPosDate(); 
         });
+
+        // 🚀 NEW IMPORT FUNCTION
+        function uploadExcel(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const btn = document.getElementById('importBtn'); // Use new ID
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+
+            fetch(`${API}/products/upload`, { method: 'POST', body: formData })
+            .then(response => {
+                if (response.ok) return response.text();
+                throw new Error("Upload failed");
+            })
+            .then(msg => {
+                alert("✅ " + msg);
+                loadInventory(); 
+            })
+            .catch(err => alert("❌ Error: " + err.message))
+            .finally(() => {
+                btn.innerHTML = originalText;
+                input.value = ''; 
+            });
+        }
 
         // --- ROLE & LAYOUT LOGIC ---
         function loadCurrentUser() {
@@ -453,86 +423,43 @@
                 applyRolePermissions(data.role);
             });
         }
-
         function applyRolePermissions(role) {
-            const body = document.getElementById('mainBody');
-            const dashboardSection = document.getElementById('dashboardSection');
-            const inventorySection = document.getElementById('inventorySection');
-            const billingSection = document.getElementById('billingSection');
-            const adminControls = document.getElementById('adminControls');
-            const exportBtn = document.getElementById('exportBtn'); // Get Export Button
-
             if (role === 'ADMIN') {
-                // ADMIN MODE: Full Width Dashboard & Inventory
-                console.log("Mode: ADMIN");
-                body.classList.add('admin-view'); // Triggers CSS to make grid 1 column
-                if(billingSection) billingSection.remove(); // Completely remove billing to fix layout
-                
-                loadDashboard(); 
-                loadInventory(); 
-
+                document.getElementById('mainBody').classList.add('admin-view');
+                document.getElementById('billingSection').remove(); 
+                loadDashboard(); loadInventory(); 
             } else {
-                // CASHIER MODE: Billing Terminal Only
-                console.log("Mode: CASHIER");
-                if(dashboardSection) dashboardSection.remove();
-                if(inventorySection) inventorySection.remove();
-                if(adminControls) adminControls.remove();
-                
-                // 🚨 SECURITY: Remove Export Button
-                if(exportBtn) exportBtn.remove(); 
-
-                loadInventory(); // Need products for dropdown
-                
-                // Center the billing terminal
+                document.getElementById('dashboardSection').remove();
+                document.getElementById('inventorySection').remove();
+                document.getElementById('adminControls').remove();
+                document.getElementById('exportBtn').remove(); 
+                document.getElementById('importBtn').remove(); // Hide Import for Staff
+                loadInventory(); 
                 document.querySelector('.grid-main').style.gridTemplateColumns = '1fr';
                 document.querySelector('.grid-main').style.maxWidth = '600px';
                 document.querySelector('.grid-main').style.margin = '0 auto';
             }
         }
 
-        // --- POS DATE LOGIC ---
         function setPosDate() {
             const dateDisplay = document.getElementById('posDateDisplay');
-            if(dateDisplay) {
-                const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-                dateDisplay.innerText = new Date().toLocaleDateString('en-US', options);
-            }
+            if(dateDisplay) dateDisplay.innerText = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
         }
 
-        // --- DASHBOARD (UPDATED) ---
         function loadDashboard() {
             const start = document.getElementById('filterStart').value;
             const end = document.getElementById('filterEnd').value;
             const url = start && end ? `${API}/dashboard/stats?startDate=${start}&endDate=${end}` : `${API}/dashboard/stats`;
-            
             fetch(url).then(res => res.json()).then(stats => {
-                // ✅ CHANGED TO RUPEE
                 document.getElementById('statRevenue').innerText = '₹' + (stats.totalRevenue || 0).toFixed(2);
                 document.getElementById('statOrders').innerText = stats.totalOrders || 0;
                 document.getElementById('statLowStock').innerText = stats.lowStockCount || 0;
-                
-                // 🧠 UPDATE AI CARD
                 document.getElementById('statPrediction').innerText = (stats.predictedSales || 0) + " Units";
-
-                // Initialize BOTH charts
                 initCharts(stats.totalOrders, stats.lowStockCount, stats.topProducts);
-
-                // Render VIP Table
+                
                 const vipTable = document.getElementById('vipTable');
                 if(stats.topCustomers && stats.topCustomers.length > 0) {
-                    vipTable.innerHTML = stats.topCustomers.map((c, i) => `
-                        <tr>
-                            <td style="padding:10px 5px;">
-                                <div style="font-weight:600; color:var(--dark);">
-                                    ${i+1}. ${c.name || 'Unknown'}
-                                </div>
-                                <div style="font-size:0.8em; color:var(--text-muted);">${c.phone}</div>
-                            </td>
-                            <td style="text-align:right; font-weight:bold; color:var(--primary);">
-                                <i class="fa-solid fa-star" style="font-size:0.8em;"></i> ${c.points}
-                            </td>
-                        </tr>
-                    `).join('');
+                    vipTable.innerHTML = stats.topCustomers.map((c, i) => `<tr><td style="padding:10px 5px;"><div style="font-weight:600; color:var(--dark);">${i+1}. ${c.name || 'Unknown'}</div><div style="font-size:0.8em; color:var(--text-muted);">${c.phone}</div></td><td style="text-align:right; font-weight:bold; color:var(--primary);"><i class="fa-solid fa-star" style="font-size:0.8em;"></i> ${c.points}</td></tr>`).join('');
                 } else {
                     vipTable.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#ccc;">No Data</td></tr>';
                 }
@@ -541,121 +468,37 @@
 
         let salesChartRef = null;
         let productChartRef = null;
-
         function initCharts(orders, alerts, topProducts) {
-            // 1. Bar Chart (Activity)
             const ctx1 = document.getElementById('salesChart').getContext('2d');
             if (salesChartRef) salesChartRef.destroy();
-            salesChartRef = new Chart(ctx1, { 
-                type: 'bar', 
-                data: { 
-                    labels: ['Total Orders', 'Stock Alerts'], 
-                    datasets: [{ 
-                        label: 'Count', 
-                        data: [orders, alerts], 
-                        backgroundColor: ['#4F46E5', '#EF4444'], 
-                        borderRadius: 6,
-                        barThickness: 50
-                    }] 
-                }, 
-                options: { 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                } 
-            });
+            salesChartRef = new Chart(ctx1, { type: 'bar', data: { labels: ['Total Orders', 'Stock Alerts'], datasets: [{ label: 'Count', data: [orders, alerts], backgroundColor: ['#4F46E5', '#EF4444'], borderRadius: 6, barThickness: 50 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
 
-            // 2. Pie Chart (Best Sellers)
             const ctx2 = document.getElementById('productsChart').getContext('2d');
             if (productChartRef) productChartRef.destroy();
-            
-            // Prepare Data from Map
-            const labels = Object.keys(topProducts || {});
-            const data = Object.values(topProducts || {});
-            
-            productChartRef = new Chart(ctx2, { 
-                type: 'doughnut', // 'doughnut' looks more modern than 'pie'
-                data: { 
-                    labels: labels, 
-                    datasets: [{ 
-                        data: data, 
-                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'], 
-                        borderWidth: 0
-                    }] 
-                }, 
-                options: { 
-                    maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { boxWidth: 10, font: {size: 11} } } 
-                    }
-                } 
-            });
+            productChartRef = new Chart(ctx2, { type: 'doughnut', data: { labels: Object.keys(topProducts || {}), datasets: [{ data: Object.values(topProducts || {}), backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'], borderWidth: 0 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
         }
 
-        // --- INVENTORY MASTER ---
         function loadInventory() { fetch(`${API}/products`).then(r=>r.json()).then(d=>{ products=d; renderInv(); renderDrop(); }); }
-        
         function renderInv() { 
             const t = document.getElementById('inventoryTable'); 
-            if(!t) return;
-            t.innerHTML=''; 
-            
+            if(!t) return; t.innerHTML=''; 
             products.forEach(p => { 
-                // 🧠 SMART STOCK LOGIC (Use DB minStock or default to 5)
                 let limit = p.minStock || 5; 
-                let stockColor = '#10B981'; // Green
-                let statusText = 'Good';
-                let safeZone = limit * 2; 
-                let percent = Math.min((p.stock / safeZone) * 100, 100) + '%';
-
-                if(p.stock <= limit) {
-                    stockColor = '#EF4444'; // Red
-                    statusText = 'Low Stock';
-                } else if(p.stock <= (limit + 2)) {
-                    stockColor = '#F59E0B'; // Orange
-                    statusText = 'Warning';
-                }
-
-                t.innerHTML += `<tr>
-                    <td style="font-family:monospace; color:var(--primary); font-weight:600;">PRD-${String(p.id).padStart(3, '0')}</td>
-                    <td>
-                        <div style="font-weight:600; color:var(--dark);">${p.name}</div>
-                        <div style="font-size:0.8em; color:var(--text-muted);">${p.brand || 'Generic'} • ${p.category || 'General'}</div>
-                    </td>
-                    <td style="font-weight:600;">₹${p.price.toFixed(2)}</td>
-                    <td>
-                        <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:2px;">
-                            <span>${p.stock} units</span>
-                            <span style="color:${stockColor}; font-weight:bold;">${statusText}</span>
-                        </div>
-                        <div class="progress-bg"><div class="progress-fill" style="width:${percent}; background:${stockColor};"></div></div>
-                         <div style="font-size:0.7em; color:#94a3b8; text-align:right; margin-top:2px;">Min: ${limit}</div>
-                    </td>
-                    <td style="text-align:right;">
-                        <button class="btn-icon" style="background:#F59E0B;" onclick="editProduct(${p.id})"><i class="fa-solid fa-pen"></i></button>
-                        <button class="btn-icon" style="background:#EF4444;" onclick="deleteProduct(${p.id})"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`; 
+                let stockColor = p.stock <= limit ? '#EF4444' : (p.stock <= (limit+2) ? '#F59E0B' : '#10B981');
+                let statusText = p.stock <= limit ? 'Low Stock' : (p.stock <= (limit+2) ? 'Warning' : 'Good');
+                let percent = Math.min((p.stock / (limit*2)) * 100, 100) + '%';
+                t.innerHTML += `<tr><td style="font-family:monospace; color:var(--primary); font-weight:600;">PRD-${String(p.id).padStart(3, '0')}</td><td><div style="font-weight:600; color:var(--dark);">${p.name}</div><div style="font-size:0.8em; color:var(--text-muted);">${p.brand || 'Generic'} • ${p.category || 'General'}</div></td><td style="font-weight:600;">₹${p.price.toFixed(2)}</td><td><div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:2px;"><span>${p.stock} units</span><span style="color:${stockColor}; font-weight:bold;">${statusText}</span></div><div class="progress-bg"><div class="progress-fill" style="width:${percent}; background:${stockColor};"></div></div></td><td style="text-align:right;"><button class="btn-icon" style="background:#F59E0B;" onclick="editProduct(${p.id})"><i class="fa-solid fa-pen"></i></button><button class="btn-icon" style="background:#EF4444;" onclick="deleteProduct(${p.id})"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
             }); 
         }
 
-        // Client-Side Filter
         function filterInventory() {
             const term = document.getElementById('inventorySearch').value.toLowerCase();
-            const rows = document.querySelectorAll('#inventoryTable tr');
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(term) ? '' : 'none';
-            });
+            document.querySelectorAll('#inventoryTable tr').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
         }
-
         function detectProductDetails() {
             const name = document.getElementById('prodName').value.toLowerCase();
-            const match = [{k:'iphone',b:'Apple',c:'Electronics'}, {k:'milk',b:'Dairy',c:'Groceries'}, {k:'nike',b:'Nike',c:'Apparel'}]
-                .find(r => name.includes(r.k));
-            if(match) {
-                document.getElementById('prodBrand').value = match.b; 
-                document.getElementById('prodCategory').value = match.c;
-            }
+            const match = [{k:'iphone',b:'Apple',c:'Electronics'}, {k:'milk',b:'Dairy',c:'Groceries'}, {k:'nike',b:'Nike',c:'Apparel'}].find(r => name.includes(r.k));
+            if(match) { document.getElementById('prodBrand').value = match.b; document.getElementById('prodCategory').value = match.c; }
         }
         function editProduct(id) {
             const p = products.find(x => x.id === id);
@@ -677,219 +520,83 @@
         }
         function saveProduct() { 
              const id = document.getElementById('prodId').value;
-             const product = { 
-                 name: document.getElementById('prodName').value, 
-                 brand: document.getElementById('prodBrand').value, 
-                 category: document.getElementById('prodCategory').value, 
-                 price: parseFloat(document.getElementById('prodPrice').value), 
-                 discount: parseFloat(document.getElementById('prodDiscount').value)||0, 
-                 stock: parseInt(document.getElementById('prodStock').value) 
-             };
+             const product = { name: document.getElementById('prodName').value, brand: document.getElementById('prodBrand').value, category: document.getElementById('prodCategory').value, price: parseFloat(document.getElementById('prodPrice').value), discount: parseFloat(document.getElementById('prodDiscount').value)||0, stock: parseInt(document.getElementById('prodStock').value) };
              const method = id ? 'PUT' : 'POST';
              const url = id ? `${API}/products/${id}` : `${API}/products`;
-             fetch(url, { method: method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(product)})
-                .then(() => { resetForm(); loadInventory(); });
+             fetch(url, { method: method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(product)}).then(() => { resetForm(); loadInventory(); });
         }
         function deleteProduct(id) { if(confirm("Delete item?")) fetch(`${API}/products/${id}`, {method:'DELETE'}).then(loadInventory); }
         function renderDrop() { 
             const s = document.getElementById('saleProductSelect');
-            // ✅ CHANGED TO RUPEE
             if(s) s.innerHTML = products.filter(p=>p.stock>0).map(p=>`<option value="${p.id}">${p.name} (₹${p.price})</option>`).join(''); 
         }
 
-        // --- BILLING LOGIC ---
         function addToCart(pidDirect=null) { 
             let pid = pidDirect && typeof pidDirect === 'object' ? pidDirect.id : (pidDirect || parseInt(document.getElementById('saleProductSelect').value));
             let p = products.find(x => x.id === pid);
             let qtyInput = document.getElementById('saleQty');
             let qtyToAdd = pidDirect && typeof pidDirect === 'object' ? 1 : (qtyInput ? parseInt(qtyInput.value) : 1);
-            
             if(!p) return alert("Product not found");
             if(p.stock < qtyToAdd) return alert("Low Stock!");
-            
             let item = cart.find(i => i.productId === pid);
-            if(item) item.quantity += qtyToAdd;
-            else cart.push({productId: pid, name: p.name, price: p.price, quantity: qtyToAdd});
+            if(item) item.quantity += qtyToAdd; else cart.push({productId: pid, name: p.name, price: p.price, quantity: qtyToAdd});
             renderCart();
         }
         function removeFromCart(i) { cart.splice(i, 1); renderCart(); }
         function renderCart() { 
-            document.getElementById('cartTable').innerHTML = cart.map((i, idx) => `
-                <tr>
-                    <td>${i.name}</td><td style="text-align:center;">${i.quantity}</td>
-                    <td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td>
-                    <td style="text-align:center; color:var(--danger); cursor:pointer;" onclick="removeFromCart(${idx})"><i class="fa-solid fa-times"></i></td>
-                </tr>`).join('');
+            document.getElementById('cartTable').innerHTML = cart.map((i, idx) => `<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td><td style="text-align:center; color:var(--danger); cursor:pointer;" onclick="removeFromCart(${idx})"><i class="fa-solid fa-times"></i></td></tr>`).join('');
             document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+(b.price*b.quantity),0).toFixed(2);
         }
         function checkout() { 
             const cashier = document.getElementById('cashierName').value;
-            // 🚨 GET PHONE NUMBER FROM INPUT
             const phone = document.getElementById('custPhone').value; 
-
             if(cart.length === 0) return alert("Cart Empty");
-            fetch(`${API}/sales`, {
-                method:'POST', headers:{'Content-Type':'application/json'}, 
-                body:JSON.stringify({ 
-                    items:cart, 
-                    cashierName: cashier, 
-                    paymentMethod: document.getElementById('payMethod').value, 
-                    status: document.getElementById('payStatus').value,
-                    customerPhone: phone // 👈 SEND PHONE TO BACKEND
-                })
-            }).then(r=>r.json()).then(d=>{ 
-                lastSaleId=d.id; 
-                document.getElementById('btnCheckout').classList.add('hidden'); 
-                document.getElementById('postSale').classList.remove('hidden'); 
-                loadInventory(); loadDashboard();
-                
-                // Reset phone for next customer
-                document.getElementById('custPhone').value = '';
-            });
+            fetch(`${API}/sales`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ items:cart, cashierName: cashier, paymentMethod: document.getElementById('payMethod').value, status: document.getElementById('payStatus').value, customerPhone: phone }) }).then(r=>r.json()).then(d=>{ lastSaleId=d.id; document.getElementById('btnCheckout').classList.add('hidden'); document.getElementById('postSale').classList.remove('hidden'); loadInventory(); loadDashboard(); document.getElementById('custPhone').value = ''; });
         }
         function downloadExcel() { window.open(`${API}/sales/export`, '_blank'); }
-        
-        // 🚀 NEW FEATURE: WEB SHARE API FOR INVOICE
         async function shareReceipt() {
             const btn = event.target;
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
-
             try {
-                // 1. Fetch PDF Blob from Backend
                 const response = await fetch(`/api/sales/${lastSaleId}/pdf`);
                 const blob = await response.blob();
-
-                // 2. Create File Object
                 const file = new File([blob], `Invoice-${lastSaleId}.pdf`, { type: "application/pdf" });
-
-                // 3. Try to Open Native Share Menu (Mobile/Desktop)
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: 'SmartStore Receipt',
-                        text: `Here is your receipt for Order #${lastSaleId}. Thank you for shopping with us!`,
-                        files: [file]
-                    });
+                    await navigator.share({ title: 'SmartStore Receipt', text: `Here is your receipt for Order #${lastSaleId}.`, files: [file] });
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent!';
                 } else {
-                    // 4. Fallback for older browsers: Just download it
-                    console.warn("Web Share API not supported, falling back to download.");
                     const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Invoice-${lastSaleId}.pdf`;
-                    a.click();
+                    const a = document.createElement('a'); a.href = url; a.download = `Invoice-${lastSaleId}.pdf`; a.click();
                     btn.innerHTML = '<i class="fa-solid fa-download"></i> Downloaded';
                 }
-            } catch (error) {
-                console.error('Error sharing:', error);
-                // Last resort fallback
-                window.open(`/api/sales/${lastSaleId}/pdf`, '_blank');
-            } finally {
-                setTimeout(() => btn.innerHTML = originalText, 2000);
-            }
+            } catch (error) { window.open(`/api/sales/${lastSaleId}/pdf`, '_blank'); } finally { setTimeout(() => btn.innerHTML = originalText, 2000); }
         }
-
-        // Standard Download (Backup)
         function downloadReceipt() { window.open(`${API}/sales/${lastSaleId}/pdf`, '_blank'); }
-
-        function startNewSale() { 
-            lastSaleId=null; cart=[]; renderCart(); 
-            document.getElementById('postSale').classList.add('hidden'); 
-            document.getElementById('btnCheckout').classList.remove('hidden'); 
-        }
-
-        // --- SCANNER ---
+        function startNewSale() { lastSaleId=null; cart=[]; renderCart(); document.getElementById('postSale').classList.add('hidden'); document.getElementById('btnCheckout').classList.remove('hidden'); }
         function toggleScanner() {
             const r = document.getElementById('reader');
             if (r.style.display === 'none') {
                 r.style.display = 'block';
                 html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-                html5QrcodeScanner.render((txt) => {
-                    let p = products.find(x => x.name.toLowerCase()===txt.toLowerCase() || x.id==txt);
-                    if(p) { addToCart(p); html5QrcodeScanner.pause(); setTimeout(()=>html5QrcodeScanner.resume(), 1500); }
-                });
-            } else {
-                if(html5QrcodeScanner) html5QrcodeScanner.clear();
-                r.style.display = 'none';
-            }
+                html5QrcodeScanner.render((txt) => { let p = products.find(x => x.name.toLowerCase()===txt.toLowerCase() || x.id==txt); if(p) { addToCart(p); html5QrcodeScanner.pause(); setTimeout(()=>html5QrcodeScanner.resume(), 1500); } });
+            } else { if(html5QrcodeScanner) html5QrcodeScanner.clear(); r.style.display = 'none'; }
         }
-        
-        // 🖨️ THERMAL PRINT FUNCTION
         function printThermal() {
-            // 1. Fill Header Info
             document.getElementById('receipt-date').innerText = new Date().toLocaleString();
             document.getElementById('receipt-id').innerText = lastSaleId || "PENDING";
             document.getElementById('receipt-total').innerText = document.getElementById('cartTotal').innerText;
-
-            // 2. Fill Items
-            const list = document.getElementById('receipt-items-list');
-            list.innerHTML = '';
-            cart.forEach(item => {
-                list.innerHTML += `
-                    <div class="receipt-item">
-                        <span>${item.name} x${item.quantity}</span>
-                        <span>₹${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                `;
-            });
-
-            // 3. Trigger Browser Print
+            const list = document.getElementById('receipt-items-list'); list.innerHTML = '';
+            cart.forEach(item => { list.innerHTML += `<div class="receipt-item"><span>${item.name} x${item.quantity}</span><span>₹${(item.price * item.quantity).toFixed(2)}</span></div>`; });
             window.print(); 
         }
-		
-		// ==========================================
-		// 🚀 PRO UPGRADE: KEYBOARD SHORTCUTS (HOTKEYS)
-		// ==========================================
 		document.addEventListener('keydown', function(event) {
-		            
-		    // F2: Focus on Product Search / Selector
-		    if (event.key === 'F2') {
-		        event.preventDefault(); // Stop browser default
-		        document.getElementById('saleProductSelect').focus();
-		        showToast("⌨️ F2: Ready to Scan");
-		    }
-
-		    // ENTER: Add to Cart (Only if we are not in the main search bar)
-		    if (event.key === 'Enter') {
-		        const activeId = document.activeElement.id;
-		        if (activeId !== 'inventorySearch' && activeId !== 'custPhone') {
-		            event.preventDefault();
-		            addToCart();
-		            document.getElementById('saleQty').select(); 
-		        }
-		    }
-
-		    // F9: Checkout / Pay
-		    if (event.key === 'F9') {
-		        event.preventDefault();
-		        if(cart.length > 0) {
-		            checkout();
-		            showToast("⌨️ F9: Processing Sale...");
-		        } else {
-		            alert("Cart is empty!");
-		        }
-		    }
-
-		    // ESC: Clear Cart / New Customer
-		    if (event.key === 'Escape') {
-		        event.preventDefault();
-		        if(confirm("⌨️ ESC: Clear current cart and start over?")) {
-		            startNewSale();
-		            showToast("Cart Cleared");
-		        }
-		    }
+		    if (event.key === 'F2') { event.preventDefault(); document.getElementById('saleProductSelect').focus(); showToast("⌨️ F2: Ready to Scan"); }
+		    if (event.key === 'Enter') { const activeId = document.activeElement.id; if (activeId !== 'inventorySearch' && activeId !== 'custPhone') { event.preventDefault(); addToCart(); document.getElementById('saleQty').select(); } }
+		    if (event.key === 'F9') { event.preventDefault(); if(cart.length > 0) { checkout(); showToast("⌨️ F9: Processing Sale..."); } else { alert("Cart is empty!"); } }
+		    if (event.key === 'Escape') { event.preventDefault(); if(confirm("⌨️ ESC: Clear current cart and start over?")) { startNewSale(); showToast("Cart Cleared"); } }
 		});
-
-		// Simple "Toast" notification for professional feedback
-		function showToast(msg) {
-		    const div = document.createElement('div');
-		    div.style = "position:fixed; bottom:20px; right:20px; background:#333; color:white; padding:10px 20px; border-radius:5px; z-index:9999; animation: fadein 0.5s, fadeout 0.5s 2.5s;";
-		    div.innerText = msg;
-		    document.body.appendChild(div);
-		    setTimeout(() => div.remove(), 3000);
-		}
-		
+		function showToast(msg) { const div = document.createElement('div'); div.style = "position:fixed; bottom:20px; right:20px; background:#333; color:white; padding:10px 20px; border-radius:5px; z-index:9999; animation: fadein 0.5s, fadeout 0.5s 2.5s;"; div.innerText = msg; document.body.appendChild(div); setTimeout(() => div.remove(), 3000); }
     </script>
 </body>
 </html>
