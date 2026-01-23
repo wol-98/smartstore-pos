@@ -8,11 +8,7 @@ public class LoginController {
 
     @GetMapping("/login")
     public String login() {
-        return "login"; // Looks for src/main/resources/templates/login.html
-    }
-    
-    @GetMapping("/")
-    public String home() {
-        return "index"; // Looks for src/main/resources/templates/index.html
+        // This looks for 'src/main/resources/templates/login.html'
+        return "login"; 
     }
 }

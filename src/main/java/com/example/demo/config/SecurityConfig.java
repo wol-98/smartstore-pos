@@ -17,14 +17,13 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) 
             .authorizeHttpRequests(auth -> auth
-                // ✅ 1. Static Resources (Public)
-                .requestMatchers("/css/**", "/js/**", "/images/**").permitAll() 
+                // ✅ 1. Allow Static Resources (CSS, JS, Images, WebJars for Icons)
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
                 
-                // ✅ 2. Login & Error Pages (Public)
-                .requestMatchers("/login", "/error").permitAll()                
+                // ✅ 2. Allow Public Access to Login & Error
+                .requestMatchers("/login", "/error").permitAll()
                 
-                // 🚀 3. SWAGGER UI WHITELIST (NEW ADDITION)
-                // Allows anyone to view API docs without logging in
+                // 🚀 3. Swagger UI Whitelist
                 .requestMatchers(
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
@@ -37,12 +36,17 @@ public class SecurityConfig {
                 // 🔒 5. Everything else requires login
                 .anyRequest().authenticated()                                    
             )
+            // 🚀 INTEGRATE CUSTOM LOGIN PAGE HERE
             .formLogin(form -> form
-                .loginPage("/login") 
-                .defaultSuccessUrl("/", true) 
+                .loginPage("/login") // Matches the @Controller mapping
+                .defaultSuccessUrl("/", true) // Redirect to Dashboard on success
                 .permitAll()
             )
-            .logout(logout -> logout.permitAll());
+            .logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/login?logout") // Redirect back to login on logout
+                .permitAll()
+            );
 
         return http.build();
     }

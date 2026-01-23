@@ -154,7 +154,7 @@
     </div>
 
     <script>
-        // 1. Check for Error
+        // 1. Check for Error in URL
         if (window.location.search.includes('error')) {
             document.getElementById('error-box').style.display = 'block';
         }
@@ -179,10 +179,10 @@
             const btn = document.getElementById('loginBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
             btn.disabled = true;
-            // Allow form to submit naturally
+            // Form submits naturally
         }
 
-        // 4. Theme Toggle (Sync with Dashboard)
+        // 4. Theme Toggle (Synced with LocalStorage)
         function toggleTheme() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
@@ -191,9 +191,8 @@
             if (isDark) {
                 icon.classList.remove('fa-moon');
                 icon.classList.add('fa-sun');
-                icon.style.color = "#F59E0B"; // Yellow Sun
-                // Optional: Save preference to LocalStorage
-                localStorage.setItem('theme', 'dark');
+                icon.style.color = "#F59E0B";
+                localStorage.setItem('theme', 'dark'); // Save preference
             } else {
                 icon.classList.remove('fa-sun');
                 icon.classList.add('fa-moon');
@@ -202,7 +201,7 @@
             }
         }
 
-        // Load saved theme on startup
+        // 5. Load Saved Theme on Page Load
         if (localStorage.getItem('theme') === 'dark') {
             toggleTheme(); // Apply dark mode immediately
         }
