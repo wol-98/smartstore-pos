@@ -1,6 +1,6 @@
 package com.example.demo.model;
 
-import jakarta.persistence.Column; // 👈 Added this import
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,7 +11,7 @@ public class Product {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id; // ✅ UPDATED: Changed from Integer to Long (Standard)
     
     private String name;
     
@@ -24,14 +24,14 @@ public class Product {
     // Inventory
     private Integer stock;      
     
-    // 🚨 SAFETY FIX: Explicitly map to the database column "min_stock"
     @Column(name = "min_stock") 
     private Integer minStock;
 
-    // --- MANUAL GETTERS AND SETTERS ---
+    // --- GETTERS AND SETTERS ---
     
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    // ✅ ID is now Long (Matches Repository & Test)
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
