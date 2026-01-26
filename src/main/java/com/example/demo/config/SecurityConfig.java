@@ -39,6 +39,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/dashboard/**").hasRole("ADMIN")             // View Profits/Stats
                 .requestMatchers("/api/suppliers/**").hasRole("ADMIN")             // Manage Vendors
                 
+                // 🚀 NEW: Explicitly Allow Chatbot for Admins
+                .requestMatchers("/api/chat/**").hasRole("ADMIN") 
+                
+                // 🚀 NEW: Allow Excel Import/Export
+                .requestMatchers("/api/sales/export/**").hasRole("ADMIN")
+                .requestMatchers("/api/products/upload/**").hasRole("ADMIN")
+
                 // Dangerous Product Operations (Write/Edit/Delete)
                 .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN") 
                 .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMIN")  
