@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartStore Manager Suite</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -21,20 +23,20 @@
             --border: rgba(255, 255, 255, 0.1); --input-bg: rgba(15, 23, 42, 0.6); --dark: #f8fafc;
         }
         body { 
-            font-family: 'Inter', sans-serif; padding: 20px; color: var(--text-main); margin: 0; height: 100vh; 
-            display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; 
+            font-family: 'Inter', sans-serif; padding: 20px; color: var(--text-main); margin: 0; 
+            min-height: 100vh; /* Changed from height to min-height for mobile scrolling */
+            display: flex; flex-direction: column; box-sizing: border-box; 
             background: linear-gradient(-45deg, #f3f4f6, #e9d5ff, #f3f4f6, #c4b5fd); background-size: 400% 400%;
             animation: gradientBG 15s ease infinite; transition: color 0.3s; 
         }
         body.dark-mode { background: linear-gradient(-45deg, #0f172a, #312e81, #1e1b4b, #312e81); background-size: 400% 400%; }
         @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         
-        body.admin-view { height: auto !important; overflow-y: auto !important; display: block !important; }
+        /* Base styles */
         .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none !important; }
         .header-container { margin-bottom: 20px; flex-shrink: 0; }
         
-        /* 🚀 CARD STYLING & SPACING */
         .card, .pos-billing-panel { 
             background: var(--card-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); 
             border-radius: 16px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07); transition: transform 0.2s;
@@ -42,13 +44,46 @@
         }
         .pos-billing-panel { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
         
-        /* DASHBOARD GRIDS */
+        /* --- 📱 RESPONSIVE GRID SYSTEM --- */
+        /* Default (Desktop) */
         .grid-dashboard-top { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 20px; }
         .grid-dashboard-mid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 20px; margin-bottom: 20px; } 
         .grid-dashboard-lower { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
         .grid-dashboard-bottom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; } 
         
         .pos-container { display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 20px; height: calc(100vh - 100px); overflow: hidden; }
+
+        /* Tablet (max-width: 1024px) */
+        @media (max-width: 1024px) {
+            .grid-dashboard-top { grid-template-columns: repeat(3, 1fr); }
+            .grid-dashboard-mid { grid-template-columns: 1fr 1fr; }
+            .grid-dashboard-lower { grid-template-columns: 1fr 1fr; }
+            .grid-dashboard-bottom { grid-template-columns: 1fr 1fr; }
+            /* Hide 3rd column items if necessary or let them wrap */
+        }
+
+        /* Mobile (max-width: 768px) */
+        @media (max-width: 768px) {
+            body { padding: 10px; overflow-y: auto !important; height: auto; }
+            .header-container { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .header-controls { flex-wrap: wrap; width: 100%; gap: 5px; }
+            
+            .grid-dashboard-top { grid-template-columns: 1fr 1fr; } /* 2 cols for stats */
+            .grid-dashboard-mid, .grid-dashboard-lower, .grid-dashboard-bottom { grid-template-columns: 1fr; } /* 1 col for charts */
+            
+            /* POS Mobile: Stack vertical */
+            .pos-container { display: flex; flex-direction: column-reverse; height: auto; overflow: visible; }
+            .pos-billing-panel, .pos-catalog-panel { height: auto; min-height: 500px; margin-bottom: 20px; }
+            .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+        }
+
+        /* Small Mobile (max-width: 480px) */
+        @media (max-width: 480px) {
+            .grid-dashboard-top { grid-template-columns: 1fr; } /* Stack stats */
+            .user-badge { display: none; } /* Save space */
+        }
+
+        /* ... Rest of your existing styles ... */
         .header-controls { display: flex; gap: 12px; align-items: center; background: var(--card-bg); padding: 8px 15px; border-radius: 12px; border: 1px solid var(--border); backdrop-filter: blur(12px); }
         .user-badge { background: rgba(126, 34, 206, 0.1); color: var(--primary); padding: 8px 15px; border-radius: 20px; font-weight: 700; font-size: 0.9em; border: 1px solid var(--border); }
 
