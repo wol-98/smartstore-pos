@@ -8,6 +8,7 @@ import com.example.demo.repository.SaleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal; // ✅ Added this import
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -35,15 +36,17 @@ public class DashboardService {
         for (Sale sale : sales) {
             totalRevenue += sale.getTotalAmount().doubleValue();
             
-            for (SaleItem item : sale.getItems()) {
-                // Get the cost price from the Product table
-                Product p = productRepo.findById(item.getProductId()).orElse(null);
-                if (p != null) {
-                    if (p.getCostPrice() != null) {
-                        totalCost += p.getCostPrice() * item.getQuantity();
-                    }
-                    if (p.getStock() <= 5) {
-                        lowStockItems.add(p.getName());
+            if (sale.getItems() != null) {
+                for (SaleItem item : sale.getItems()) {
+                    // Get the cost price from the Product table
+                    Product p = productRepo.findById(item.getProductId()).orElse(null);
+                    if (p != null) {
+                        if (p.getCostPrice() != null) {
+                            totalCost += p.getCostPrice() * item.getQuantity();
+                        }
+                        if (p.getStock() <= 5) {
+                            lowStockItems.add(p.getName());
+                        }
                     }
                 }
             }
@@ -63,14 +66,18 @@ public class DashboardService {
             String cashier = sale.getCashierName() != null ? sale.getCashierName() : "Unknown";
             staffPerformance.put(cashier, staffPerformance.getOrDefault(cashier, 0.0) + sale.getTotalAmount().doubleValue());
 
-            for (SaleItem item : sale.getItems()) {
-                // Product Stats
-                productSales.put(item.getProductName(), productSales.getOrDefault(item.getProductName(), 0) + item.getQuantity());
-                
-                // Category Stats
-                Product p = productRepo.findById(item.getProductId()).orElse(null);
-                if(p != null && p.getCategory() != null) {
-                    categoryRevenue.put(p.getCategory(), categoryRevenue.getOrDefault(p.getCategory(), 0.0) + (item.getPrice() * item.getQuantity()));
+            if (sale.getItems() != null) {
+                for (SaleItem item : sale.getItems()) {
+                    // Product Stats
+                    productSales.put(item.getProductName(), productSales.getOrDefault(item.getProductName(), 0) + item.getQuantity());
+                    
+                    // Category Stats
+                    Product p = productRepo.findById(item.getProductId()).orElse(null);
+                    if(p != null && p.getCategory() != null) {
+                        // 🚀 FIXED LINE BELOW: Using BigDecimal math instead of '*'
+                        double lineTotal = item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())).doubleValue();
+                        categoryRevenue.put(p.getCategory(), categoryRevenue.getOrDefault(p.getCategory(), 0.0) + lineTotal);
+                    }
                 }
             }
         }
@@ -86,8 +93,8 @@ public class DashboardService {
         response.put("totalRevenue", totalRevenue);
         response.put("totalOrders", totalOrders);
         response.put("lowStockCount", lowStockItems.size());
-        response.put("totalProfit", totalProfit); // 💰
-        response.put("profitMargin", profitMargin); // 📈
+        response.put("totalProfit", totalProfit);
+        response.put("profitMargin", profitMargin);
         response.put("topProducts", topProducts);
         response.put("categoryRevenue", categoryRevenue);
         response.put("staffPerformance", staffPerformance);
