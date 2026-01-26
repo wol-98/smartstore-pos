@@ -92,8 +92,8 @@
         #undoToast.show { visibility: visible; animation: fadein 0.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
         
-        /* 🚀 CHATBOT STYLES */
-        #chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; align-items: flex-end; }
+        /* 🚀 CHATBOT STYLES - Hidden by Default */
+        #chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 2000; display: none; flex-direction: column; align-items: flex-end; }
         #chat-btn { width: 60px; height: 60px; border-radius: 50%; background: var(--primary); color: white; font-size: 24px; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: 0.3s; display: flex; align-items: center; justify-content: center; }
         #chat-btn:hover { transform: scale(1.1); }
         #chat-window { width: 350px; height: 450px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); margin-bottom: 15px; display: none; flex-direction: column; backdrop-filter: blur(12px); overflow: hidden; }
@@ -378,14 +378,17 @@
                     document.getElementById('mainBody').classList.add('admin-view'); 
                     document.getElementById('dashboardSection').classList.remove('hidden'); 
                     document.getElementById('inventorySection').classList.remove('hidden'); 
+                    // 🚀 SHOW CHATBOT FOR ADMIN ONLY
+                    document.getElementById('chat-widget').style.display = 'flex';
                     loadDashboard(); loadInventory(); loadFeedback(); 
-                    loadSuppliers(); // 🚀 LOAD SUPPLIERS ON INIT
+                    loadSuppliers(); 
                 } else { 
                     document.getElementById('mainBody').classList.remove('admin-view'); 
                     document.getElementById('billingSection').classList.remove('hidden'); 
                     document.getElementById('adminControls').remove(); 
                     document.getElementById('exportBtn').remove(); 
                     document.getElementById('importBtn').remove(); 
+                    // Chatbot remains hidden by default CSS
                     loadInventory(); 
                 } 
             }); 
@@ -487,7 +490,19 @@
         function clearCart(){ if(confirm("Clear?")) { cart=[]; renderCart(); } }
         function renderCart(){ document.getElementById('cartTable').innerHTML=cart.map((i,x)=>`<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td><td onclick="removeFromCart(${x})" style="color:red; cursor:pointer; text-align:center;">×</td></tr>`).join(''); document.getElementById('cartTotal').innerText = cart.reduce((a,b)=>a+b.price*b.quantity,0).toFixed(2); }
         function checkout() { if (!cart.length) return alert("Cart is empty!"); const btn = document.getElementById('btnCheckout'); const originalText = btn.innerText; btn.innerText = 'Processing...'; btn.disabled = true; fetch(`${API}/sales`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: cart, cashierName: document.getElementById('cashierName').value, customerPhone: document.getElementById('custPhone').value, paymentMethod: document.getElementById('payMethod').value, status: document.getElementById('payStatus').value }) }).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.json(); }).then(d => { lastSaleId = d.id; document.getElementById('btnCheckout').classList.add('hidden'); document.getElementById('postSale').classList.remove('hidden'); document.getElementById('shareEmail').value = document.getElementById('custEmail').value; loadInventory(); }).catch(e => { alert("Failed: " + e.message); btn.innerText = originalText; btn.disabled = false; }); }
-        function startNewSale(){ cart=[]; renderCart(); document.getElementById('postSale').classList.add('hidden'); document.getElementById('btnCheckout').classList.remove('hidden'); document.getElementById('btnCheckout').innerText='Complete Transaction'; document.getElementById('shareEmail').value=''; document.getElementById('custEmail').value=''; }
+        
+        // 🚀 FIXED: ENABLE BUTTON FOR NEXT SALE
+        function startNewSale(){ 
+            cart=[]; 
+            renderCart(); 
+            document.getElementById('postSale').classList.add('hidden'); 
+            document.getElementById('btnCheckout').classList.remove('hidden'); 
+            document.getElementById('btnCheckout').innerText='Complete Transaction'; 
+            document.getElementById('btnCheckout').disabled = false; // ✅ ENABLE BUTTON
+            document.getElementById('shareEmail').value=''; 
+            document.getElementById('custEmail').value=''; 
+            document.getElementById('custPhone').value='';
+        }
         
         function saveProduct() { 
             const id = document.getElementById('prodId').value; 
