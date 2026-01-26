@@ -125,9 +125,16 @@ public class PdfService {
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 10, Color.DARK_GRAY));
             document.add(words);
 
-            // --- LOYALTY FOOTER (FIXED) ---
+            // 🚀 THE FIX: This Line Separator is now OUTSIDE the 'if' block.
+            // It will draw every time, regardless of customer loyalty status.
+            document.add(new Paragraph(" ")); 
+            LineSeparator bottomLine = new LineSeparator();
+            bottomLine.setLineColor(Color.LIGHT_GRAY);
+            document.add(new Chunk(bottomLine));
+
+            // --- LOYALTY FOOTER (Optional) ---
             if(sale.getCustomerPhone() != null && !sale.getCustomerPhone().isEmpty()) {
-                // 🛠️ FIX: Direct call instead of Optional
+                // Direct call instead of Optional to avoid errors
                 com.example.demo.model.Customer cust = customerRepo.findByPhone(sale.getCustomerPhone());
                 
                 if(cust != null) {
@@ -137,9 +144,8 @@ public class PdfService {
                     loyaltyTable.setWidthPercentage(100);
                     
                     PdfPCell lCell = new PdfPCell();
-                    lCell.setBorder(Rectangle.TOP | Rectangle.BOTTOM);
-                    lCell.setBorderColor(Color.LIGHT_GRAY);
-                    lCell.setPadding(10);
+                    lCell.setBorder(Rectangle.NO_BORDER); // Removed border to blend with new line
+                    lCell.setPadding(5);
                     lCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                     
                     Font loyaltyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(16, 185, 129)); 
@@ -154,6 +160,10 @@ public class PdfService {
                     loyaltyTable.addCell(lCell);
                     
                     document.add(loyaltyTable);
+
+                    // Add a second line below loyalty to keep it neat (Optional)
+                    document.add(new Paragraph(" ")); 
+                    document.add(new Chunk(new LineSeparator()));
                 }
             }
 
