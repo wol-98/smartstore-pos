@@ -53,21 +53,23 @@ public class SaleController {
         ByteArrayInputStream pdfStream = pdfService.generateInvoice(sale);
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", "attachment; filename=invoice-" + id + ".pdf");
+        
+        // Ensure you have 'commons-io' dependency in pom.xml for this line
         org.apache.commons.io.IOUtils.copy(pdfStream, response.getOutputStream());
     }
 
-    // --- 3. SHARE INVOICE (FIXED: Uses findByIdWithItems) ---
+    // --- 3. SHARE INVOICE (Background Thread) ---
     @PostMapping("/{id}/share")
     public ResponseEntity<?> shareInvoice(@PathVariable Long id, @RequestParam String email) {
         
-        // 🚀 USE THE NEW METHOD FROM REPOSITORY
+        // 🚀 Fetch Sale WITH items to prevent "LazyInitializationException"
         Sale sale = saleRepo.findByIdWithItems(id)
                 .orElseThrow(() -> new RuntimeException("Sale not found"));
 
-        // Start Background Thread
+        // 🚀 Run Email Logic in Background Thread
         new Thread(() -> {
             try {
-                // Generate PDF (Safe now because items are already loaded)
+                // Generate PDF
                 ByteArrayInputStream pdfStream = pdfService.generateInvoice(sale);
                 byte[] pdfBytes = pdfStream.readAllBytes();
 
@@ -75,6 +77,7 @@ public class SaleController {
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true);
                 
+                helper.setFrom("SmartStore POS <grabmeonly@gmail.com>");
                 helper.setTo(email);
                 helper.setSubject("🧾 Your SmartStore Invoice #" + id);
                 helper.setText("Hello,\n\nThank you for shopping with us! Please find your invoice attached.\n\nBest Regards,\nSmartStore Team");

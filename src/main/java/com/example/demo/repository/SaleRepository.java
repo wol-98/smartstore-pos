@@ -13,14 +13,17 @@ import java.util.Optional;
 @Repository
 public interface SaleRepository extends JpaRepository<Sale, Long> {
     
-    // 1. For PDF/Receipts (Prevents crash)
+    // 1. For PDF/Receipts
     @Query("SELECT s FROM Sale s LEFT JOIN FETCH s.items WHERE s.id = :id")
     Optional<Sale> findByIdWithItems(@Param("id") Long id);
 
     // 2. For AI Prediction
     List<Sale> findByDateAfter(LocalDateTime date);
 
-    // 3. 🚀 THE FIX: This method allows the Dashboard to filter by date range.
-    // Without this, DashboardController will show a Red Error.
+    // 3. For Basic Filtering
     List<Sale> findByDateBetween(LocalDateTime start, LocalDateTime end);
+
+    // 🚀 4. NEW: For Profit Analytics (Fetches Items + Sales together)
+    @Query("SELECT s FROM Sale s JOIN FETCH s.items WHERE s.date BETWEEN :start AND :end")
+    List<Sale> findSalesWithItems(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

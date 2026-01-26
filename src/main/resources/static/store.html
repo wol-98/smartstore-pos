@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartStore Online</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #7E22CE; --bg: #F9FAFB; --card: #ffffff; --text: #1F2937; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding-bottom: 70px; -webkit-tap-highlight-color: transparent; }
+        
+        /* APP HEADER */
+        .app-header { background: white; padding: 15px; position: sticky; top: 0; z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-weight: 800; font-size: 1.2em; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        
+        /* VIEWS (Tab System) */
+        .view { display: none; padding: 15px; animation: fadeIn 0.2s ease-out; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* AUTH FORMS */
+        .auth-box { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1em; outline: none; }
+        input:focus { border-color: var(--primary); }
+        .btn { background: var(--primary); color: white; border: none; padding: 14px; width: 100%; border-radius: 10px; font-weight: bold; font-size: 1em; cursor: pointer; margin-top: 10px; }
+        .btn:active { transform: scale(0.98); }
+        .link { color: var(--primary); text-decoration: none; font-size: 0.9em; cursor: pointer; display: inline-block; margin-top: 15px; }
+
+        /* PRODUCT GRID */
+        .search-bar { width: 100%; padding: 12px 20px; border-radius: 30px; border: none; background: #e5e7eb; margin-bottom: 20px; font-size: 0.95em; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .product-card { background: white; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; height: 160px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+        .add-btn { background: #f3f4f6; color: var(--primary); border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; position: absolute; bottom: 10px; right: 10px; }
+
+        /* CART ITEMS */
+        .cart-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .qty-control { display: flex; align-items: center; gap: 10px; background: #f3f4f6; padding: 5px; border-radius: 20px; }
+        .qty-btn { width: 25px; height: 25px; border-radius: 50%; border: none; background: white; font-weight: bold; cursor: pointer; }
+
+        /* BOTTOM NAV */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; padding: 10px 0; z-index: 100; }
+        .nav-item { text-align: center; color: #9CA3AF; cursor: pointer; font-size: 0.8em; }
+        .nav-item.active { color: var(--primary); }
+        .nav-icon { font-size: 1.4em; margin-bottom: 4px; display: block; }
+        .badge { background: #EF4444; color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; position: absolute; margin-left: 10px; margin-top: -10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="view-auth" class="view active">
+        <div class="auth-box">
+            <h1 style="color:var(--primary);">SmartStore</h1>
+            <p style="color:#666; margin-bottom:20px;">Your favorite store, now in your pocket.</p>
+            
+            <div id="loginForm">
+                <input type="text" id="loginPhone" placeholder="Mobile Number">
+                <input type="password" id="loginPass" placeholder="Password">
+                <button class="btn" onclick="login()">Login</button>
+                <div class="link" onclick="toggleAuth('register')">New User? Create Account</div>
+            </div>
+
+            <div id="registerForm" style="display:none;">
+                <input type="text" id="regName" placeholder="Full Name">
+                <input type="text" id="regPhone" placeholder="Mobile Number">
+                <input type="password" id="regPass" placeholder="Set Password">
+                <input type="text" id="regAddress" placeholder="Delivery Address">
+                <button class="btn" onclick="register()">Sign Up</button>
+                <div class="link" onclick="toggleAuth('login')">Already have an account? Login</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-home" class="view">
+        <div class="app-header">
+            <div class="logo"><i class="fa-solid fa-store"></i> <span id="welcomeName">Store</span></div>
+            <div onclick="logout()" style="color:#666; font-size:0.9em;">Logout</div>
+        </div>
+        <input type="text" class="search-bar" placeholder="Search for items..." onkeyup="renderProducts(this.value)">
+        
+        <div id="recs" style="display:none; margin-bottom:20px;">
+            <h3 style="margin:0 0 10px 0; font-size:1em;">🔥 Recommended for You</h3>
+            <div id="recList" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:5px;"></div>
+        </div>
+
+        <h3 style="margin:0 0 15px 0;">All Products</h3>
+        <div id="productGrid" class="grid"></div>
+    </div>
+
+    <div id="view-cart" class="view">
+        <div class="app-header"><div class="logo">My Cart</div></div>
+        <div id="cartList" style="margin-top:10px;"></div>
+        
+        <div style="margin-top:20px; background:white; padding:15px; border-radius:12px;">
+            <h3>Delivery Details</h3>
+            <p id="deliverTo" style="color:#666; font-size:0.9em; margin-bottom:10px;">...</p>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.1em; margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                <span>Total</span>
+                <span>₹<span id="cartTotal">0.00</span></span>
+            </div>
+            <button class="btn" onclick="placeOrder()">Place Order (COD)</button>
+        </div>
+    </div>
+
+    <div id="view-orders" class="view">
+        <div class="app-header"><div class="logo">My Orders</div></div>
+        <div id="orderHistory" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="bottomNav" class="bottom-nav" style="display:none;">
+        <div class="nav-item active" onclick="switchView('home', this)">
+            <i class="fa-solid fa-home nav-icon"></i> Home
+        </div>
+        <div class="nav-item" onclick="switchView('cart', this)">
+            <i class="fa-solid fa-shopping-bag nav-icon"></i> Cart <span id="cartBadge" class="badge">0</span>
+        </div>
+        <div class="nav-item" onclick="switchView('orders', this)">
+            <i class="fa-solid fa-clock-rotate-left nav-icon"></i> Orders
+        </div>
+    </div>
+
+    <script>
+        const API = '/api'; 
+        let user = JSON.parse(localStorage.getItem('storeUser'));
+        let products = [];
+        let cart = [];
+
+        // INIT
+        if(user) showApp();
+
+        // AUTH FUNCTIONS
+        function toggleAuth(mode) {
+            document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
+        }
+
+        function register() {
+            const data = {
+                name: document.getElementById('regName').value,
+                phone: document.getElementById('regPhone').value,
+                password: document.getElementById('regPass').value,
+                address: document.getElementById('regAddress').value
+            };
+            fetch(`${API}/store/auth/register`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            }).then(async r => {
+                if(r.ok) { alert("Registered! Please Login."); toggleAuth('login'); }
+                else alert(await r.text());
+            });
+        }
+
+        function login() {
+            const data = { phone: document.getElementById('loginPhone').value, password: document.getElementById('loginPass').value };
+            fetch(`${API}/store/auth/login`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            }).then(async r => {
+                if(r.ok) {
+                    user = await r.json();
+                    localStorage.setItem('storeUser', JSON.stringify(user));
+                    showApp();
+                } else alert("Invalid Login");
+            });
+        }
+
+        function logout() { localStorage.removeItem('storeUser'); location.reload(); }
+
+        function showApp() {
+            document.getElementById('view-auth').classList.remove('active');
+            document.getElementById('view-home').classList.add('active');
+            document.getElementById('bottomNav').style.display = 'flex';
+            document.getElementById('welcomeName').innerText = "Hi, " + user.name.split(' ')[0];
+            document.getElementById('deliverTo').innerText = user.address || "No Address Set";
+            loadProducts();
+            loadOrders();
+        }
+
+        function switchView(viewName, el) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+
+        // STORE FUNCTIONS
+        function loadProducts() {
+            fetch(`${API}/products`).then(r => r.json()).then(d => {
+                products = d;
+                renderProducts();
+            });
+        }
+
+        function renderProducts(term = "") {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = products.filter(p => p.name.toLowerCase().includes(term.toLowerCase()) && p.stock > 0).map(p => `
+                <div class="product-card">
+                    <div>
+                        <div style="font-weight:bold; font-size:0.9em; margin-bottom:5px;">${p.name}</div>
+                        <div style="color:#666; font-size:0.8em;">${p.category}</div>
+                    </div>
+                    <div>
+                        <div style="color:var(--primary); font-weight:800;">₹${p.price}</div>
+                        <button class="add-btn" onclick="addToCart(${p.id})">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            const p = products.find(x => x.id === id);
+            const item = cart.find(x => x.productId === id);
+            if(item) item.quantity++; else cart.push({ productId: p.id, name: p.name, price: p.price, quantity: 1 });
+            updateCartUI();
+            
+            // Trigger Recommendations (Using your new Service!)
+            fetch(`${API}/recommendations/${id}`).then(r=>r.json()).then(recs => {
+                if(recs.length > 0) {
+                    document.getElementById('recs').style.display = 'block';
+                    document.getElementById('recList').innerHTML = recs.map(r => `
+                        <div onclick="addToCart(${r.id})" style="min-width:100px; background:white; padding:8px; border-radius:10px; border:1px solid #eee;">
+                            <div style="font-size:0.8em; font-weight:bold;">${r.name}</div>
+                            <div style="color:green; font-size:0.8em;">₹${r.price}</div>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+
+        function updateCartUI() {
+            const badge = document.getElementById('cartBadge');
+            const count = cart.reduce((a,b) => a + b.quantity, 0);
+            badge.innerText = count;
+            badge.style.display = count > 0 ? 'block' : 'none';
+
+            // Render Cart View
+            document.getElementById('cartList').innerHTML = cart.map((item, i) => `
+                <div class="cart-item">
+                    <div><b>${item.name}</b><br><small>₹${item.price}</small></div>
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="updateQty(${i}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="qty-btn" onclick="updateQty(${i}, 1)">+</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            const total = cart.reduce((a,b) => a + (b.price * b.quantity), 0);
+            document.getElementById('cartTotal').innerText = total.toFixed(2);
+        }
+
+        function updateQty(idx, change) {
+            if(cart[idx].quantity + change > 0) cart[idx].quantity += change; else cart.splice(idx, 1);
+            updateCartUI();
+        }
+
+        function placeOrder() {
+            if(!cart.length) return alert("Cart is empty");
+            
+            const payload = {
+                items: cart,
+                customerPhone: user.phone, // Links order to this user
+                paymentMethod: "COD",
+                status: "Pending Delivery"
+            };
+
+            fetch(`${API}/sales`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            }).then(r => r.json()).then(d => {
+                alert("Order Placed! Order ID: #" + d.id);
+                cart = [];
+                updateCartUI();
+                loadOrders();
+                switchView('orders');
+            });
+        }
+
+        function loadOrders() {
+            // Simple filter: Sales matching my phone number
+            // (In a real app, you'd have a specific endpoint for this)
+            fetch(`${API}/dashboard/stats`).then(r => r.json()).then(s => {
+                const myOrders = s.recentSales ? s.recentSales.filter(o => o.customerPhone === user.phone) : [];
+                document.getElementById('orderHistory').innerHTML = myOrders.map(o => `
+                    <div class="cart-item">
+                        <div>
+                            <b>Order #${o.id}</b><br>
+                            <small>${o.date.split('T')[0]}</small>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:bold;">₹${o.totalAmount}</div>
+                            <small style="color:${o.status==='Pending Delivery'?'orange':'green'}">${o.status}</small>
+                        </div>
+                    </div>
+                `).join('') || '<p style="text-align:center; color:#999;">No orders yet.</p>';
+            });
+        }
+    </script>
+</body>
+</html>

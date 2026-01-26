@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self Checkout | SmartStore</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #7E22CE; --bg: #F3F4F6; --card: #ffffff; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* LEFT: Product Grid */
+        .catalog-section { flex: 2; padding: 20px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+        
+        .product-card { 
+            background: var(--card); border-radius: 20px; padding: 15px; text-align: center; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: 0.2s; cursor: pointer; border: 2px solid transparent;
+        }
+        .product-card:active { transform: scale(0.95); }
+        .product-card.selected { border-color: var(--primary); }
+        .icon-box { font-size: 3em; margin-bottom: 10px; color: #4B5563; }
+        .price-tag { font-weight: 800; color: var(--primary); font-size: 1.1em; }
+        .stock-tag { font-size: 0.7em; color: #9CA3AF; }
+
+        /* RIGHT: Cart */
+        .cart-section { flex: 1; background: white; padding: 20px; display: flex; flex-direction: column; box-shadow: -5px 0 15px rgba(0,0,0,0.05); }
+        .cart-items { flex: 1; overflow-y: auto; margin-top: 10px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .qty-btn { background: #E5E7EB; border: none; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+        
+        .pay-btn { 
+            background: black; color: white; border: none; padding: 20px; border-radius: 15px; 
+            font-size: 1.2em; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .pay-btn:hover { opacity: 0.9; }
+
+        /* MODAL */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); z-index: 999; }
+        .modal-content { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 400px; animation: popIn 0.3s; }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="catalog-section">
+        <div class="header">
+            <h1>🍔 Self Checkout</h1>
+            <input type="text" id="search" placeholder="Search items..." onkeyup="renderCatalog()" 
+                   style="padding: 10px 20px; border-radius: 30px; border: 1px solid #ddd; width: 250px; outline: none;">
+        </div>
+        <div id="grid" class="grid">Loading Products...</div>
+    </div>
+
+    <div class="cart-section">
+        <h2>Your Order</h2>
+        <div id="cartList" class="cart-items">
+            <div style="text-align:center; color:#999; margin-top:50px;">
+                <i class="fa-solid fa-basket-shopping" style="font-size: 2em; margin-bottom:10px;"></i><br>Cart is empty
+            </div>
+        </div>
+        
+        <div style="margin-top: auto;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-weight:600;">
+                <span>Total</span>
+                <span>₹<span id="totalAmt">0.00</span></span>
+            </div>
+            <button class="pay-btn" onclick="openPayment()">
+                <span>Pay Now</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="payModal" class="modal">
+        <div class="modal-content">
+            <i class="fa-brands fa-google-pay" style="font-size: 3em; color: #4285F4;"></i>
+            <h2>Scan to Pay</h2>
+            <p>Please scan the QR code below to complete payment.</p>
+            <div style="background: #f0f0f0; padding: 20px; display: inline-block; margin: 10px 0;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=smartstore@upi&pn=SmartStore" alt="QR">
+            </div>
+            <br>
+            <input type="email" id="custEmail" placeholder="Enter Email for Receipt" style="padding: 10px; width: 80%; margin-top:10px; border: 1px solid #ddd; border-radius: 8px;">
+            <br><br>
+            <button onclick="processOrder()" style="background: #10B981; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; cursor: pointer;">I Have Paid</button>
+            <button onclick="closeModal()" style="background: transparent; border: none; color: #666; margin-left: 10px; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
+
+    <div id="successModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <i class="fa-solid fa-circle-check" style="font-size: 4em; color: #10B981; margin-bottom: 20px;"></i>
+            <h2>Order Successful!</h2>
+            <p>Your receipt has been sent to your email.</p>
+            <h1 id="orderIdDisplay">#000</h1>
+            <p style="color: #666; font-size: 0.9em;">Please collect your items at the counter.</p>
+            <button onclick="location.reload()" style="background: black; color: white; padding: 15px 30px; border-radius: 10px; margin-top: 20px; cursor: pointer;">Start New Order</button>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let products = [];
+        let cart = [];
+
+        // 1. Load Products on Start
+        fetch(`${API}/products`).then(r => r.json()).then(d => {
+            products = d;
+            renderCatalog();
+        });
+
+        function renderCatalog() {
+            const term = document.getElementById('search').value.toLowerCase();
+            const container = document.getElementById('grid');
+            container.innerHTML = products
+                .filter(p => p.name.toLowerCase().includes(term) && p.stock > 0)
+                .map(p => {
+                    // Pick a random icon based on category (Simple logic)
+                    let icon = 'fa-box-open';
+                    if(p.category && p.category.includes('Food')) icon = 'fa-burger';
+                    if(p.category && p.category.includes('Elect')) icon = 'fa-mobile-screen';
+                    
+                    return `
+                    <div class="product-card" onclick="addToCart(${p.id})">
+                        <div class="icon-box"><i class="fa-solid ${icon}"></i></div>
+                        <div style="font-weight:600; margin-bottom:5px; height: 40px; overflow:hidden; display:flex; align-items:center; justify-content:center;">${p.name}</div>
+                        <div class="price-tag">₹${p.price}</div>
+                    </div>`;
+                }).join('');
+        }
+
+        function addToCart(id) {
+            const p = products.find(x => x.id === id);
+            const item = cart.find(x => x.productId === id);
+            
+            if (item) {
+                if(item.quantity < p.stock) item.quantity++;
+            } else {
+                cart.push({ productId: p.id, name: p.name, price: p.price, quantity: 1 });
+            }
+            renderCart();
+        }
+
+        function updateQty(idx, change) {
+            if (cart[idx].quantity + change > 0) {
+                cart[idx].quantity += change;
+            } else {
+                cart.splice(idx, 1);
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cartList');
+            if (cart.length === 0) {
+                list.innerHTML = `<div style="text-align:center; color:#999; margin-top:50px;"><i class="fa-solid fa-basket-shopping" style="font-size: 2em;"></i><br>Cart is empty</div>`;
+                document.getElementById('totalAmt').innerText = "0.00";
+                return;
+            }
+
+            list.innerHTML = cart.map((item, i) => `
+                <div class="cart-item">
+                    <div>
+                        <div style="font-weight:600;">${item.name}</div>
+                        <div style="font-size:0.8em; color:#666;">₹${item.price} x ${item.quantity}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="qty-btn" onclick="updateQty(${i}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="qty-btn" onclick="updateQty(${i}, 1)">+</button>
+                    </div>
+                </div>
+            `).join('');
+
+            const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            document.getElementById('totalAmt').innerText = total.toFixed(2);
+        }
+
+        function openPayment() {
+            if(cart.length === 0) return alert("Cart is empty!");
+            document.getElementById('payModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('payModal').style.display = 'none';
+        }
+
+        function processOrder() {
+            const email = document.getElementById('custEmail').value;
+            const btn = event.target;
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            const payload = {
+                items: cart,
+                cashierName: "Kiosk User",
+                customerPhone: "KIOSK", // Marker for Kiosk sales
+                paymentMethod: "UPI",
+                status: "Paid"
+            };
+
+            fetch(`${API}/sales`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(data => {
+                // If email provided, share receipt automatically
+                if(email) {
+                    fetch(`${API}/sales/${data.id}/share?email=${email}`, { method: 'POST' });
+                }
+                
+                document.getElementById('payModal').style.display = 'none';
+                document.getElementById('orderIdDisplay').innerText = "#" + data.id;
+                document.getElementById('successModal').style.display = 'flex';
+            });
+        }
+    </script>
+</body>
+</html>

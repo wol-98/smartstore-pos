@@ -11,7 +11,7 @@ public class Product {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // ✅ UPDATED: Changed from Integer to Long (Standard)
+    private Long id; 
     
     private String name;
     
@@ -20,16 +20,19 @@ public class Product {
     private String category;
     private Double price;
     private Double discount;
-    
+    private Double costPrice;
+    private Long supplierId;
+
     // Inventory
     private Integer stock;      
     
     @Column(name = "min_stock") 
     private Integer minStock;
 
+    // 🚀 NEW FLAG: Tracks if we already sent an email for this drop
+    private Boolean isAlertSent = false; 
+
     // --- GETTERS AND SETTERS ---
-    
-    // ✅ ID is now Long (Matches Repository & Test)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -48,9 +51,19 @@ public class Product {
     public Double getDiscount() { return discount; }
     public void setDiscount(Double discount) { this.discount = discount; }
 
+    public Double getCostPrice() { return costPrice; }
+    public void setCostPrice(Double costPrice) { this.costPrice = costPrice; }
+
+    public Long getSupplierId() { return supplierId; }
+    public void setSupplierId(Long supplierId) { this.supplierId = supplierId; }
+
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
 
     public Integer getMinStock() { return minStock; }
     public void setMinStock(Integer minStock) { this.minStock = minStock; }
+
+    // 🚀 Getter/Setter for the new flag
+    public Boolean getIsAlertSent() { return isAlertSent != null ? isAlertSent : false; }
+    public void setIsAlertSent(Boolean isAlertSent) { this.isAlertSent = isAlertSent; }
 }

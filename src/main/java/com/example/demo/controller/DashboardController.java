@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode; 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -32,14 +33,17 @@ public class DashboardController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
 
-        // 1. Fetch Sales (With error handling for dates)
+        // 1. Fetch Sales
         List<Sale> allSales;
         try {
             if (startDate != null && endDate != null && !startDate.isEmpty() && !endDate.isEmpty()) {
                 LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
                 LocalDateTime end = LocalDate.parse(endDate).atTime(23, 59, 59);
-                allSales = saleRepo.findByDateBetween(start, end); 
+                
+                // 🚀 FIX: Use the JOIN FETCH query to ensure Items (and Cost Price) are loaded
+                allSales = saleRepo.findSalesWithItems(start, end); 
             } else {
+                // Default: Fetch all (Be careful with large data!)
                 allSales = saleRepo.findAll(Sort.by(Sort.Direction.DESC, "date"));
             }
         } catch (Exception e) {
@@ -47,14 +51,37 @@ public class DashboardController {
             allSales = new ArrayList<>();
         }
 
-        // 2. Total Revenue (Handles BigDecimal safely)
+        // 2. Total Revenue
         BigDecimal totalRevenue = allSales.stream()
                 .map(s -> s.getTotalAmount() != null ? s.getTotalAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 3. Low Stock Count
-        long lowStockCount = productRepo.findAll().stream()
+        List<Product> products = productRepo.findAll(); // Fetch once for efficiency
+        long lowStockCount = products.stream()
                 .filter(p -> p.getStock() != null && p.getStock() <= 5).count();
+
+        // 🚀 NEW: Calculate Profit & Margin
+        // Create a quick lookup map for Cost Prices: ID -> CostPrice
+        Map<Long, Double> productCostMap = products.stream()
+            .collect(Collectors.toMap(Product::getId, p -> p.getCostPrice() != null ? p.getCostPrice() : 0.0));
+
+        BigDecimal totalCost = BigDecimal.ZERO;
+
+        for (Sale sale : allSales) {
+            if (sale.getItems() == null) continue;
+            for (SaleItem item : sale.getItems()) {
+                // Get Cost Price from map (default to 0 if missing)
+                Double cp = productCostMap.getOrDefault(item.getProductId(), 0.0);
+                BigDecimal itemTotalCost = BigDecimal.valueOf(cp).multiply(BigDecimal.valueOf(item.getQuantity()));
+                totalCost = totalCost.add(itemTotalCost);
+            }
+        }
+
+        BigDecimal totalProfit = totalRevenue.subtract(totalCost);
+        BigDecimal profitMargin = (totalRevenue.compareTo(BigDecimal.ZERO) > 0)
+                ? totalProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
 
         // 4. Best Sellers (Top Products)
         Map<String, Integer> productSales = allSales.stream()
@@ -67,8 +94,7 @@ public class DashboardController {
                 .limit(5)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        // 5. Category Revenue (🚀 THE FIX: Handles BigDecimal to Double conversion)
-        List<Product> products = productRepo.findAll();
+        // 5. Category Revenue
         Map<Long, String> productCategories = products.stream()
             .collect(Collectors.toMap(Product::getId, 
                     p -> p.getCategory() != null ? p.getCategory() : "Uncategorized",
@@ -78,7 +104,6 @@ public class DashboardController {
         for (Sale sale : allSales) {
             if (sale.getItems() == null) continue;
             for (SaleItem item : sale.getItems()) {
-                // Safety Conversion: BigDecimal -> Double
                 double price = (item.getPrice() != null) ? item.getPrice().doubleValue() : 0.0;
                 int qty = item.getQuantity();
                 
@@ -96,7 +121,7 @@ public class DashboardController {
                                 BigDecimal::add)
                 ));
 
-        // 7. Recent Sales (Limit 10)
+        // 7. Recent Sales
         List<Sale> recentSales = allSales.stream()
                 .sorted(Comparator.comparing(Sale::getDate).reversed())
                 .limit(10)
@@ -115,6 +140,10 @@ public class DashboardController {
         stats.put("staffPerformance", staffPerformance);
         stats.put("recentSales", recentSales);
         stats.put("topCustomers", topCustomers);
+        
+        // 🚀 Add Profit Stats
+        stats.put("totalProfit", totalProfit);
+        stats.put("profitMargin", profitMargin);
         
         return stats;
     }
