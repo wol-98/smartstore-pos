@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Table(name = "sales")
 public class Sale {
 
     @Id
@@ -14,16 +15,17 @@ public class Sale {
 
     private LocalDateTime date = LocalDateTime.now();
     private BigDecimal totalAmount;
-    private String status;       // Paid, Pending
+    private String status;        // Paid, Pending
     private String paymentMethod; // Cash, Card, UPI
     
-    // Track which cashier made the sale
     private String cashierName;
-
-    // 🚨 NEW: Store the Customer's Phone (Crucial for PDF)
     private String customerPhone; 
 
-    @OneToMany(cascade = CascadeType.ALL)
+    // 🚨 THIS WAS MISSING (Fixes the Red Line)
+    private Long customerId;
+
+    // 🔗 Links to SaleItem (matches the "sale" field in SaleItem.java)
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sale")
     private List<SaleItem> items;
 
     // --- GETTERS AND SETTERS ---
@@ -45,10 +47,13 @@ public class Sale {
     public String getCashierName() { return cashierName; }
     public void setCashierName(String cashierName) { this.cashierName = cashierName; }
 
-    public List<SaleItem> getItems() { return items; }
-    public void setItems(List<SaleItem> items) { this.items = items; }
-
-    // 🚨 NEW Getters & Setters for Phone
     public String getCustomerPhone() { return customerPhone; }
     public void setCustomerPhone(String customerPhone) { this.customerPhone = customerPhone; }
+
+    // 🚨 NEW Getters & Setters for the missing field
+    public Long getCustomerId() { return customerId; }
+    public void setCustomerId(Long customerId) { this.customerId = customerId; }
+
+    public List<SaleItem> getItems() { return items; }
+    public void setItems(List<SaleItem> items) { this.items = items; }
 }

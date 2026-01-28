@@ -22,7 +22,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 public class SaleServiceTest {
 
-    @Mock private SaleRepository saleRepo;       
+    @Mock private SaleRepository saleRepo;        
     @Mock private ProductRepository productRepo; 
     @Mock private CustomerRepository customerRepo; 
 
@@ -30,7 +30,7 @@ public class SaleServiceTest {
     private SaleService saleService; 
 
     @Test
-    public void testProcessSale_CalculatesTotalCorrectly() {
+    public void testCreateSale_CalculatesTotalCorrectly() {
         // 1. SETUP: Prepare fake data
         Map<String, Object> request = new HashMap<>();
         request.put("paymentMethod", "Cash");
@@ -44,11 +44,13 @@ public class SaleServiceTest {
         Map<String, Object> item1 = new HashMap<>();
         item1.put("productId", 101);
         item1.put("quantity", 1);
+        item1.put("price", 50.0); // 👈 ADDED: Service expects price in the map
         items.add(item1);
 
         Map<String, Object> item2 = new HashMap<>();
-        item2.put("productId", 102); // Different ID, but we mock finding the same product object for simplicity
+        item2.put("productId", 102); 
         item2.put("quantity", 1);
+        item2.put("price", 50.0); // 👈 ADDED: Service expects price in the map
         items.add(item2);
 
         request.put("items", items);
@@ -60,28 +62,27 @@ public class SaleServiceTest {
         fakeProduct.setId(101L);
         fakeProduct.setStock(10);
         fakeProduct.setName("Test Product");
-        fakeProduct.setPrice(50.00); // 👈 IMPORTANT: Set price so calculation works!
+        fakeProduct.setPrice(50.00); 
         
         // When service asks for a product, give them this fake one
         when(productRepo.findById(anyLong())).thenReturn(Optional.of(fakeProduct));
         
         // B. Mock Sale (The Transaction)
-        // When service saves a sale, just return it back
         when(saleRepo.save(any(Sale.class))).thenAnswer(i -> i.getArguments()[0]);
 
         // C. Mock Customer (The CRM)
-        // 🚀 FIX: Return 'null' instead of Optional.empty()
         when(customerRepo.findByPhone(anyString())).thenReturn(null);
 
-        // 2. EXECUTE
-        Sale result = saleService.processSale(request);
+        // 2. EXECUTE (✅ FIXED: changed processSale -> createSale)
+        Sale result = saleService.createSale(request);
 
         // 3. VERIFY
         // 50.00 + 50.00 = 100.0
-        assertEquals(new BigDecimal("100.0"), result.getTotalAmount());
+        // Use compareTo for safe BigDecimal comparison
+        assertEquals(0, new BigDecimal("100.0").compareTo(result.getTotalAmount()));
         
-        verify(productRepo, times(2)).save(any(Product.class)); // Stock updated twice
-        verify(customerRepo, times(2)).save(any(Customer.class)); // Customer created/updated
+        verify(productRepo, times(2)).save(any(Product.class)); // Stock updated twice (once per item)
+        verify(customerRepo, times(1)).save(any(Customer.class)); // ✅ FIXED: Customer saved once
         
         System.out.println("✅ TEST PASSED: Revenue Calculation Verified!");
     }

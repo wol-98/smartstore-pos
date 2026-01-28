@@ -1,16 +1,44 @@
-version: '3.8'
+version: "3.8"
 
 services:
+
   backend:
+    container_name: springboot-backend
     build: .
-    network_mode: "host" # <--- The Magic Fix. Uses your real internet.
     env_file:
       - .env
+
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+          cpus: "2.0"
+
+    restart: unless-stopped
+
     depends_on:
       - ai-service
 
+    ports:
+      - "8080:8080"
+
+
   ai-service:
+    container_name: ai-service
     build: ./ai-service
-    network_mode: "host" # <--- The Magic Fix.
     env_file:
       - .env
+
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"

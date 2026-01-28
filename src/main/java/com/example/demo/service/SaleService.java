@@ -1,12 +1,7 @@
 package com.example.demo.service;
 
-import com.example.demo.model.Customer;
-import com.example.demo.model.Product;
-import com.example.demo.model.Sale;
-import com.example.demo.model.SaleItem;
-import com.example.demo.repository.CustomerRepository;
-import com.example.demo.repository.ProductRepository;
-import com.example.demo.repository.SaleRepository;
+import com.example.demo.model.*;
+import com.example.demo.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,87 +15,82 @@ import java.util.Map;
 @Service
 public class SaleService {
 
-    @Autowired
-    private SaleRepository saleRepo;
-
-    @Autowired
-    private ProductRepository productRepo;
-
-    @Autowired
-    private CustomerRepository customerRepo;
+    @Autowired private SaleRepository saleRepo;
+    @Autowired private ProductRepository productRepo;
+    @Autowired private CustomerRepository customerRepo; 
 
     @Transactional
-    public Sale processSale(Map<String, Object> saleData) {
-        // 1. Extract Data from JSON
-        String cashierName = (String) saleData.get("cashierName");
-        String customerPhone = (String) saleData.get("customerPhone");
-        String paymentMethod = (String) saleData.get("paymentMethod");
-        String status = (String) saleData.get("status");
-        List<Map<String, Object>> itemsData = (List<Map<String, Object>>) saleData.get("items");
+    public Sale createSale(Map<String, Object> payload) { // 👈 Renamed to match Controller
+        
+        // 1. Extract Data
+        String cashierName = (String) payload.getOrDefault("cashierName", "Unknown");
+        String payMethod = (String) payload.getOrDefault("paymentMethod", "Cash");
+        String status = (String) payload.getOrDefault("status", "Paid");
+        String custPhone = (String) payload.getOrDefault("customerPhone", "");
 
-        // 2. Handle Customer (The Fix 🛠️)
-        // We check if phone exists. If yes, look up. If null/empty, it's a guest.
-        if (customerPhone != null && !customerPhone.isEmpty()) {
-            Customer customer = customerRepo.findByPhone(customerPhone);
-            
-            if (customer == null) {
-                // Create New Customer if not found
-                customer = new Customer();
-                customer.setName("New Customer"); // You can add a name field to the form later
-                customer.setPhone(customerPhone);
-                customer.setPoints(0);
-                customerRepo.save(customer);
-            }
-            
-            // Add Loyalty Points (e.g., 10 points per sale)
-            customer.setPoints(customer.getPoints() + 10);
-            customerRepo.save(customer);
-        }
-
-        // 3. Create Sale Object
         Sale sale = new Sale();
         sale.setCashierName(cashierName);
-        sale.setCustomerPhone(customerPhone);
-        sale.setPaymentMethod(paymentMethod);
+        sale.setPaymentMethod(payMethod);
         sale.setStatus(status);
         sale.setDate(LocalDateTime.now());
 
+        // 2. Process Items
+        List<Map<String, Object>> itemsData = (List<Map<String, Object>>) payload.get("items");
         List<SaleItem> saleItems = new ArrayList<>();
-        BigDecimal grandTotal = BigDecimal.ZERO;
+        BigDecimal totalAmount = BigDecimal.ZERO;
 
-        // 4. Process Items & Deduct Stock
-        for (Map<String, Object> itemData : itemsData) {
-            Long prodId = Long.valueOf(itemData.get("productId").toString());
-            int quantity = Integer.parseInt(itemData.get("quantity").toString());
+        for (Map<String, Object> item : itemsData) {
+            Long prodId = Long.valueOf(item.get("productId").toString());
+            int qty = Integer.parseInt(item.get("quantity").toString());
 
-            Product product = productRepo.findById(prodId)
+            Product p = productRepo.findById(prodId)
                     .orElseThrow(() -> new RuntimeException("Product not found: " + prodId));
 
-            if (product.getStock() < quantity) {
-                throw new RuntimeException("Out of Stock: " + product.getName());
+            // Stock Check
+            if (p.getStock() < qty) {
+                throw new RuntimeException("Not enough stock for: " + p.getName());
             }
-
+            
             // Deduct Stock
-            product.setStock(product.getStock() - quantity);
-            productRepo.save(product);
+            p.setStock(p.getStock() - qty);
+            productRepo.save(p);
 
             // Create Sale Item
-            SaleItem saleItem = new SaleItem();
-            saleItem.setProductId(product.getId());
-            saleItem.setProductName(product.getName());
-            saleItem.setQuantity(quantity);
-            saleItem.setPrice(BigDecimal.valueOf(product.getPrice()));
-            saleItem.setSale(sale); // Link back to parent
+            SaleItem si = new SaleItem();
+            si.setProductId(p.getId());
+            si.setProductName(p.getName());
+            si.setQuantity(qty);
             
-            saleItems.add(saleItem);
-
-            // Add to Total
-            BigDecimal itemTotal = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(quantity));
-            grandTotal = grandTotal.add(itemTotal);
+            // Handle Price safely
+            BigDecimal price = BigDecimal.valueOf(Double.parseDouble(item.get("price").toString()));
+            si.setPrice(price);
+            si.setSale(sale); // 🔗 Link item back to parent Sale (Crucial for JPA)
+            
+            saleItems.add(si);
+            totalAmount = totalAmount.add(price.multiply(BigDecimal.valueOf(qty)));
         }
 
         sale.setItems(saleItems);
-        sale.setTotalAmount(grandTotal);
+        sale.setTotalAmount(totalAmount);
+
+        // 3. 👑 LOYALTY POINTS LOGIC (Dynamic)
+        if (custPhone != null && !custPhone.trim().isEmpty()) {
+            Customer customer = customerRepo.findByPhone(custPhone);
+            
+            if (customer == null) {
+                customer = new Customer();
+                customer.setPhone(custPhone);
+                customer.setName("Guest " + custPhone);
+                customer.setPoints(0);
+            }
+
+            // Award 1 Point for every ₹10 spent
+            int newPoints = totalAmount.intValue() / 10;
+            customer.setPoints(customer.getPoints() + newPoints);
+            
+            customerRepo.save(customer);
+            sale.setCustomerId(customer.getId()); 
+        }
 
         return saleRepo.save(sale);
     }
