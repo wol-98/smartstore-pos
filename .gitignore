@@ -33,3 +33,7 @@ build/
 .vscode/
 .env
 .env
+venv/
+target/
+*.class
+.DS_Store

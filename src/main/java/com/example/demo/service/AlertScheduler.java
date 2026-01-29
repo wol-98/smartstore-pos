@@ -21,54 +21,59 @@ public class AlertScheduler {
     @Autowired private SaleRepository saleRepo;
     @Autowired private EmailService emailService;
 
+    // TODO: Move this to application.properties for security
     private final String ADMIN_EMAIL = "grabmeonly@gmail.com"; 
 
-    // 🕒 Check every 30 seconds (For testing)
-    // Once satisfied, change back to 14400000 (4 hours)
+    // 🕒 Check every 4 hours (14400000 ms)
     @Scheduled(fixedRate = 14400000) 
     public void checkLowStock() {
         List<Product> products = productRepo.findAll();
         StringBuilder alertBody = new StringBuilder("<h3>⚠️ Low Stock Alert</h3><ul>");
         boolean needsEmail = false;
-        List<Product> productsToUpdate = new ArrayList<>(); // List to save changes
+        List<Product> productsToUpdate = new ArrayList<>();
+
+        System.out.println("🕵️ Scheduler Running: Checking " + products.size() + " products...");
 
         for (Product p : products) {
-            if (p.getStock() == null) continue; // Skip null stock
+            if (p.getStock() == null) continue;
 
-            // CASE 1: Stock is Low AND We haven't alerted yet
-            if (p.getStock() <= 5 && !p.getIsAlertSent()) {
+            // CASE 1: Low Stock & Not Yet Alerted
+            if (p.getStock() <= 5 && !Boolean.TRUE.equals(p.getIsAlertSent())) {
                 alertBody.append("<li><b>").append(p.getName())
                          .append("</b>: Only ").append(p.getStock()).append(" left!</li>");
                 
-                // Mark as alerted so we don't spam next time
                 p.setIsAlertSent(true); 
                 productsToUpdate.add(p);
                 needsEmail = true;
+                System.out.println("🔻 Low Stock Detected: " + p.getName());
             }
             
-            // CASE 2: Stock Recovered (User restocked) -> Reset the flag
-            else if (p.getStock() > 5 && p.getIsAlertSent()) {
-                p.setIsAlertSent(false); // Reset so we alert again if it drops later
+            // CASE 2: Restock Detected (Robustness Fix) 🛠️
+            // Logic: Stock is healthy (>5) BUT the flag is still true. Reset it.
+            else if (p.getStock() > 5 && Boolean.TRUE.equals(p.getIsAlertSent())) {
+                p.setIsAlertSent(false);
                 productsToUpdate.add(p);
+                // 👇 The Fix: Now we know when a human acted!
+                System.out.println("🔄 Restock Detected: Resetting alert flag for " + p.getName());
             }
         }
-        alertBody.append("</ul><p>Please contact suppliers.</p>");
+        alertBody.append("</ul><p>Please contact suppliers or approve Purchase Order.</p>");
 
-        // 1. Save the updated flags to database
+        // 1. Batch Update Database
         if (!productsToUpdate.isEmpty()) {
             productRepo.saveAll(productsToUpdate);
         }
 
-        // 2. Send Email ONLY if there are NEW alerts
+        // 2. Send Email ONLY if needed
         if (needsEmail) {
-            System.out.println("⚠️ Found NEW low stock items. Sending Email...");
+            System.out.println("📧 Sending Low Stock Email to Admin...");
             emailService.sendSimpleEmail(ADMIN_EMAIL, "⚠️ Inventory Warning - Action Needed", alertBody.toString());
         } else {
-            System.out.println("✅ Checked Stock: No new alerts.");
+            System.out.println("✅ Stock Check Complete: No new alerts.");
         }
     }
 
-    // 🌙 Task 2: Daily Sales Report at 10:00 PM
+    // 🌙 Daily Report at 10 PM
     @Scheduled(cron = "0 0 22 * * ?") 
     public void sendDailyReport() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
@@ -84,7 +89,7 @@ public class AlertScheduler {
         String body = "<h3>End of Day Summary</h3>" +
                       "<p><b>Total Sales:</b> " + todaysSales.size() + "</p>" +
                       "<p><b>Total Revenue:</b> Rs. " + totalRevenue + "</p>" +
-                      "<br><i>Good job today!</i>";
+                      "<br><i>Automated by SmartStore POS</i>";
 
         emailService.sendSimpleEmail(ADMIN_EMAIL, subject, body);
         System.out.println("✅ Sent Daily Report.");
