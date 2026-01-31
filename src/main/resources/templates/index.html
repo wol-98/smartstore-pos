@@ -317,8 +317,8 @@
                     <input type="text" id="prodCategory" placeholder="Category">
                 </div>
                 <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin-bottom:15px;">
-                    <input type="number" id="prodPrice" placeholder="Buying Price (₹)">
-                    <input type="number" id="prodCostPrice" placeholder="Selling Price (₹)">
+                    <input type="number" id="prodBuyingPrice" placeholder="Buying Price (Cost) ₹">
+                    <input type="number" id="prodSellingPrice" placeholder="Selling Price (Retail) ₹">
                     <input type="number" id="prodStock" placeholder="Stock">
                 </div>
                 <div style="margin-bottom:15px;">
@@ -529,10 +529,64 @@
             }
 
             function loadInventory(){ fetch(`${API}/products`).then(r => r.json()).then(d => { products = d; requestAnimationFrame(() => renderCatalog()); if(!document.getElementById('inventorySection').classList.contains('hidden')){ setTimeout(renderInv, 50); } }); }
-            function renderCatalog(){ const t = document.getElementById('posSearch').value.toLowerCase(); document.getElementById('productGrid').innerHTML = products.filter(p => (p.name && p.name.toLowerCase().includes(t)) || String(p.id).includes(t)).map(p => { let validStock = (p.stock === null || p.stock === undefined) ? 0 : p.stock; let validBrand = (p.brand && p.brand !== 'null') ? p.brand : ''; let c = 'product-card'; let s = 'stock-badge'; let action = `addToCart({id:${p.id}})`; if(validStock <= 5) s += ' stock-low'; if(validStock === 0){ s += ' stock-out'; c += ' opacity-50'; action = ''; } return `<div class="${c}" onclick="${action}"><div><h4>${p.name}</h4><small>${validBrand}</small> </div><div class="flex-between"><div class="price">₹${p.price}</div><div class="${s}">${validStock} left</div> </div></div>`; }).join(''); }
-            function renderInv(){ const t = document.getElementById('inventoryTable'); if(t){ t.innerHTML = ''; products.forEach(p => { let s = p.stock <= 5 ? '<span style="color:red; font-weight:bold;">Low</span>' : '<span style="color:green; font-weight:bold;">Good</span>'; let b = p.stock <= 5 ? '#ef4444' : '#10b981'; let brand = p.brand; if(!brand || brand === 'null') brand = '-'; let cat = p.category; if(!cat || cat === 'null') cat = '-'; const meta = `${brand} • ${cat}`; t.innerHTML += `<tr data-id="${p.id}"><td style="color:var(--primary); font-weight:bold;">PRD-${p.id}</td><td><b>${p.name}</b><br><small style="color:var(--text-muted);">${meta}</small></td><td style="color:var(--text-muted);">₹${(p.costPrice||0).toFixed(2)}</td><td><b>₹${p.price.toFixed(2)}</b></td><td><div class="flex-between" style="font-size:0.8em; margin-bottom:2px;"><span>${p.stock} units</span>${s}</div><div style="height:6px; background:rgba(0,0,0,0.1); border-radius:3px;"><div style="height:100%; width:${Math.min(p.stock,100)}%; background:${b}; border-radius:3px;"></div></div></td><td style="text-align:right; display:flex; gap:5px; justify-content:flex-end;"><button onclick="editProduct(${p.id})" style="background:#f59e0b; width:auto; padding:5px 10px; font-size:0.8em;"><i class="fa-solid fa-pen"></i> Edit</button><button onclick="deleteProduct(${p.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;"><i class="fa-solid fa-trash"></i> Delete</button></td></tr>`; }); } }
+            
+            // 🚨 UPDATED: Now uses p.sellingPrice for display and cart
+            function renderCatalog(){ 
+                const t = document.getElementById('posSearch').value.toLowerCase(); 
+                document.getElementById('productGrid').innerHTML = products.filter(p => (p.name && p.name.toLowerCase().includes(t)) || String(p.id).includes(t)).map(p => { 
+                    let validStock = (p.stock === null || p.stock === undefined) ? 0 : p.stock; 
+                    let validBrand = (p.brand && p.brand !== 'null') ? p.brand : ''; 
+                    let c = 'product-card'; 
+                    let s = 'stock-badge'; 
+                    let action = `addToCart({id:${p.id}})`; 
+                    if(validStock <= 5) s += ' stock-low'; 
+                    if(validStock === 0){ s += ' stock-out'; c += ' opacity-50'; action = ''; } 
+                    return `<div class="${c}" onclick="${action}">
+                            <div><h4>${p.name}</h4><small>${validBrand}</small></div>
+                            <div class="flex-between"><div class="price">₹${(p.sellingPrice || 0).toFixed(2)}</div><div class="${s}">${validStock} left</div></div>
+                            </div>`; 
+                }).join(''); 
+            }
 
-            function addToCart(o){ playBeep(); let p = products.find(x => x.id === o.id); let i = cart.find(x => x.productId === o.id); let qty = parseInt(document.getElementById('bulkQty').value) || 1; if(p.stock < (i ? i.quantity + qty : qty)) return alert("Out of Stock"); if(i) i.quantity += qty; else cart.push({productId:p.id, name:p.name, price:p.price, quantity:qty}); document.getElementById('bulkQty').value = 1; renderCart(); }
+            // 🚨 UPDATED: Displays buyingPrice and sellingPrice
+            function renderInv(){ 
+                const t = document.getElementById('inventoryTable'); 
+                if(t){ 
+                    t.innerHTML = ''; 
+                    products.forEach(p => { 
+                        let s = p.stock <= 5 ? '<span style="color:red; font-weight:bold;">Low</span>' : '<span style="color:green; font-weight:bold;">Good</span>'; 
+                        let b = p.stock <= 5 ? '#ef4444' : '#10b981'; 
+                        let brand = p.brand; if(!brand || brand === 'null') brand = '-'; 
+                        let cat = p.category; if(!cat || cat === 'null') cat = '-'; 
+                        const meta = `${brand} • ${cat}`; 
+                        t.innerHTML += `<tr data-id="${p.id}">
+                            <td style="color:var(--primary); font-weight:bold;">PRD-${p.id}</td>
+                            <td><b>${p.name}</b><br><small style="color:var(--text-muted);">${meta}</small></td>
+                            <td style="color:var(--text-muted);">₹${(p.buyingPrice||0).toFixed(2)}</td>
+                            <td><b>₹${(p.sellingPrice||0).toFixed(2)}</b></td>
+                            <td><div class="flex-between" style="font-size:0.8em; margin-bottom:2px;"><span>${p.stock} units</span>${s}</div><div style="height:6px; background:rgba(0,0,0,0.1); border-radius:3px;"><div style="height:100%; width:${Math.min(p.stock,100)}%; background:${b}; border-radius:3px;"></div></div></td>
+                            <td style="text-align:right; display:flex; gap:5px; justify-content:flex-end;">
+                                <button onclick="editProduct(${p.id})" style="background:#f59e0b; width:auto; padding:5px 10px; font-size:0.8em;"><i class="fa-solid fa-pen"></i> Edit</button>
+                                <button onclick="deleteProduct(${p.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;"><i class="fa-solid fa-trash"></i> Delete</button>
+                            </td>
+                        </tr>`; 
+                    }); 
+                } 
+            }
+
+            // 🚨 UPDATED: Uses p.sellingPrice for cart additions
+            function addToCart(o){ 
+                playBeep(); 
+                let p = products.find(x => x.id === o.id); 
+                let i = cart.find(x => x.productId === o.id); 
+                let qty = parseInt(document.getElementById('bulkQty').value) || 1; 
+                if(p.stock < (i ? i.quantity + qty : qty)) return alert("Out of Stock"); 
+                if(i) i.quantity += qty; 
+                else cart.push({productId:p.id, name:p.name, price:p.sellingPrice, quantity:qty}); 
+                document.getElementById('bulkQty').value = 1; 
+                renderCart(); 
+            }
+
             function removeFromCart(i){ cart.splice(i, 1); renderCart(); }
             function clearCart(){ if(confirm("Clear?")) { cart = []; discountRate = 0; renderCart(); document.getElementById('couponCode').value = ''; document.getElementById('couponMsg').innerHTML = ''; } }
             function renderCart(){ 
@@ -695,25 +749,40 @@
             function loadFeedback() { fetch(`${API}/feedback`).then(r => r.json()).then(data => { const t = document.getElementById('feedbackTable'); if(!data.length) { t.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:10px;">No messages.</td></tr>'; return; } t.innerHTML = data.map(f => { let action = ''; if(f.status === 'RESOLVED' || f.status.includes('APPROVED')) action = '<span style="color:green; font-weight:bold;">✔ Done</span>'; else if(f.category === 'Stock' && f.linkedProductId) action = `<button onclick="approveStock(${f.id})" class="btn-sm" style="background:#10B981; color:white;">+10 Stock</button>`; else action = `<button onclick="resolveFeedback(${f.id})" class="btn-sm" style="background:#3b82f6; color:white;">Resolve</button>`; return `<tr><td style="padding:8px;"><small>${f.submittedAt.split('T')[0]}</small><br><b>${f.username}</b></td><td style="padding:8px;"><b>${f.category}</b><br>${f.message}</td><td style="padding:8px; text-align:right;">${action}</td></tr>`; }).join(''); }); }
             function resolveFeedback(id) { fetch(`${API}/feedback/${id}/resolve`, {method:'PUT'}).then(loadFeedback); }
             function approveStock(id) { fetch(`${API}/feedback/${id}/approve-stock`, {method:'PUT'}).then(() => { alert("Stock Added!"); loadFeedback(); loadInventory(); }); }
-            function saveProduct() { const id = document.getElementById('prodId').value; const payload = { name: document.getElementById('prodName').value, brand: document.getElementById('prodBrand').value, category: document.getElementById('prodCategory').value, price: parseFloat(document.getElementById('prodPrice').value), costPrice: parseFloat(document.getElementById('prodCostPrice').value), supplierId: document.getElementById('prodSupplier').value || null, stock: parseInt(document.getElementById('prodStock').value) }; if (id) payload.id = id; fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); }); }
+            
+            // 🚨 UPDATED: Maps new inputs (prodBuyingPrice/prodSellingPrice) to new JSON keys
+            function saveProduct() { 
+                const id = document.getElementById('prodId').value; 
+                const payload = { 
+                    name: document.getElementById('prodName').value, 
+                    brand: document.getElementById('prodBrand').value, 
+                    category: document.getElementById('prodCategory').value, 
+                    buyingPrice: parseFloat(document.getElementById('prodBuyingPrice').value), 
+                    sellingPrice: parseFloat(document.getElementById('prodSellingPrice').value), 
+                    supplierId: document.getElementById('prodSupplier').value || null, 
+                    stock: parseInt(document.getElementById('prodStock').value) 
+                }; 
+                if (id) payload.id = id; 
+                fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); }); 
+            }
+
             function deleteProduct(id) { const row = document.querySelector(`tr[data-id="${id}"]`); if (row) { row.style.opacity = '0.3'; row.style.pointerEvents = 'none'; } productToDelete = id; document.getElementById('undoToast').className = "show"; deleteTimeout = setTimeout(() => { fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory); document.getElementById('undoToast').className = ""; }, 4000); }
             function undoDelete() { clearTimeout(deleteTimeout); const row = document.querySelector(`tr[data-id="${productToDelete}"]`); if (row) { row.style.opacity = '1'; row.style.pointerEvents = 'auto'; } document.getElementById('undoToast').className = ""; }
             
-            // --- MODIFIED EDIT PRODUCT (Scroll to top) ---
+            // 🚨 UPDATED: Loads p.buyingPrice and p.sellingPrice into inputs
             function editProduct(id) { 
                 const p = products.find(x => x.id === id); 
                 document.getElementById('prodId').value = p.id; 
                 document.getElementById('prodName').value = p.name; 
                 document.getElementById('prodBrand').value = p.brand; 
                 document.getElementById('prodCategory').value = p.category; 
-                document.getElementById('prodPrice').value = p.price; 
-                document.getElementById('prodCostPrice').value = p.costPrice || ''; 
+                document.getElementById('prodBuyingPrice').value = p.buyingPrice; 
+                document.getElementById('prodSellingPrice').value = p.sellingPrice; 
                 document.getElementById('prodStock').value = p.stock; 
                 document.getElementById('prodSupplier').value = p.supplierId || ""; 
                 document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Product'; 
                 document.getElementById('cancelBtn').classList.remove('hidden'); 
                 
-                // AUTO SCROLL FEATURE
                 document.getElementById('inventorySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 

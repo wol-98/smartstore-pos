@@ -40,10 +40,9 @@ public class DashboardController {
                 LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
                 LocalDateTime end = LocalDate.parse(endDate).atTime(23, 59, 59);
                 
-                // 🚀 FIX: Use the JOIN FETCH query to ensure Items (and Cost Price) are loaded
+                // Ensure your SaleRepository has this method or use standard findByDateBetween
                 allSales = saleRepo.findSalesWithItems(start, end); 
             } else {
-                // Default: Fetch all (Be careful with large data!)
                 allSales = saleRepo.findAll(Sort.by(Sort.Direction.DESC, "date"));
             }
         } catch (Exception e) {
@@ -51,34 +50,42 @@ public class DashboardController {
             allSales = new ArrayList<>();
         }
 
-        // 2. Total Revenue
+        // 2. Total Revenue (Using BigDecimal)
         BigDecimal totalRevenue = allSales.stream()
                 .map(s -> s.getTotalAmount() != null ? s.getTotalAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 3. Low Stock Count
-        List<Product> products = productRepo.findAll(); // Fetch once for efficiency
+        List<Product> products = productRepo.findAll(); 
         long lowStockCount = products.stream()
                 .filter(p -> p.getStock() != null && p.getStock() <= 5).count();
 
-        // 🚀 NEW: Calculate Profit & Margin
-        // Create a quick lookup map for Cost Prices: ID -> CostPrice
-        Map<Long, Double> productCostMap = products.stream()
-            .collect(Collectors.toMap(Product::getId, p -> p.getCostPrice() != null ? p.getCostPrice() : 0.0));
+        // 🚀 FIX: Calculate Profit using 'buyingPrice' and BigDecimal
+        // Create lookup: ProductID -> BuyingPrice (Cost)
+        Map<Long, BigDecimal> productCostMap = products.stream()
+            .collect(Collectors.toMap(
+                Product::getId, 
+                p -> p.getBuyingPrice() != null ? p.getBuyingPrice() : BigDecimal.ZERO
+            ));
 
         BigDecimal totalCost = BigDecimal.ZERO;
 
         for (Sale sale : allSales) {
             if (sale.getItems() == null) continue;
             for (SaleItem item : sale.getItems()) {
-                // Get Cost Price from map (default to 0 if missing)
-                Double cp = productCostMap.getOrDefault(item.getProductId(), 0.0);
-                BigDecimal itemTotalCost = BigDecimal.valueOf(cp).multiply(BigDecimal.valueOf(item.getQuantity()));
+                // Get Buying Price from map (default to 0.00 if missing)
+                BigDecimal buyingPrice = productCostMap.getOrDefault(item.getProductId(), BigDecimal.ZERO);
+                
+                // Cost = Buying Price * Quantity sold
+                BigDecimal itemTotalCost = buyingPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+                
                 totalCost = totalCost.add(itemTotalCost);
             }
         }
 
         BigDecimal totalProfit = totalRevenue.subtract(totalCost);
+        
+        // Calculate Margin: (Profit / Revenue) * 100
         BigDecimal profitMargin = (totalRevenue.compareTo(BigDecimal.ZERO) > 0)
                 ? totalProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
                 : BigDecimal.ZERO;
@@ -94,21 +101,26 @@ public class DashboardController {
                 .limit(5)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        // 5. Category Revenue
+        // 5. Category Revenue (Updated for BigDecimal)
         Map<Long, String> productCategories = products.stream()
-            .collect(Collectors.toMap(Product::getId, 
-                    p -> p.getCategory() != null ? p.getCategory() : "Uncategorized",
-                    (existing, replacement) -> existing));
+            .collect(Collectors.toMap(
+                Product::getId, 
+                p -> p.getCategory() != null ? p.getCategory() : "Uncategorized",
+                (existing, replacement) -> existing));
         
-        Map<String, Double> categoryRevenue = new HashMap<>();
+        Map<String, BigDecimal> categoryRevenue = new HashMap<>();
+        
         for (Sale sale : allSales) {
             if (sale.getItems() == null) continue;
             for (SaleItem item : sale.getItems()) {
-                double price = (item.getPrice() != null) ? item.getPrice().doubleValue() : 0.0;
-                int qty = item.getQuantity();
+                // Assuming SaleItem.price is now BigDecimal. If it's still Double, use BigDecimal.valueOf(item.getPrice())
+                BigDecimal price = (item.getPrice() != null) ? item.getPrice() : BigDecimal.ZERO;
+                BigDecimal lineTotal = price.multiply(BigDecimal.valueOf(item.getQuantity()));
                 
                 String cat = productCategories.getOrDefault(item.getProductId(), "Uncategorized");
-                categoryRevenue.put(cat, categoryRevenue.getOrDefault(cat, 0.0) + (price * qty));
+                
+                // Merge adds the new amount to existing amount for that category
+                categoryRevenue.merge(cat, lineTotal, BigDecimal::add);
             }
         }
 
@@ -141,7 +153,7 @@ public class DashboardController {
         stats.put("recentSales", recentSales);
         stats.put("topCustomers", topCustomers);
         
-        // 🚀 Add Profit Stats
+        // Profit Stats
         stats.put("totalProfit", totalProfit);
         stats.put("profitMargin", profitMargin);
         

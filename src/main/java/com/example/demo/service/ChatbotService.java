@@ -5,9 +5,9 @@ import com.example.demo.model.Product;
 import com.example.demo.model.Sale;
 import com.example.demo.model.SaleItem;
 import com.example.demo.repository.CustomerRepository;
+import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.repository.ProductRepository;
 import com.example.demo.repository.SaleRepository;
-import com.example.demo.repository.FeedbackRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,7 +29,6 @@ public class ChatbotService {
     @Autowired private FeedbackRepository feedbackRepo;
     @Autowired private PredictionService predictionService;
 
-    // Use environment variable for Docker compatibility
     private final String AI_URL = System.getenv("AI_SERVICE_URL") != null ? System.getenv("AI_SERVICE_URL") : "http://localhost:5000";
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -37,23 +36,18 @@ public class ChatbotService {
 
     @PostConstruct
     public void init() {
-        // 📚 EXPANDED KNOWLEDGE BASE (Answers for UI Questions)
         knowledgeBase.put("wifi", "The store WiFi password is: **StoreSecure123**");
         knowledgeBase.put("export", "Click the green **Export** button (Top Right) to download Excel reports.");
         knowledgeBase.put("import", "Use the orange **Import** button in the header to upload bulk products via Excel.");
         knowledgeBase.put("theme", "Toggle **Dark/Light Mode** using the Moon/Sun icon 🌙 in the top right.");
-        knowledgeBase.put("dark mode", "Toggle **Dark/Light Mode** using the Moon/Sun icon 🌙 in the top right.");
         knowledgeBase.put("date", "Use the **Date Pickers** in the header to filter the dashboard data.");
     }
 
-    // 🧠 MAIN LOGIC ROUTER
     public String processQuery(String query) {
         if (query == null || query.trim().isEmpty()) return "👋 Hello! I am listening.";
 
-        // 1. Ask Python Intent
         String intent = getIntentFromAI(query);
 
-        // 2. Execute Logic
         switch (intent) {
             case "GET_REVENUE": return getRevenueSummary(query);
             case "GET_PROFIT": return getProfitSummary();
@@ -68,15 +62,13 @@ public class ChatbotService {
             case "PREDICT_SALES": return getAIForecast();
             case "GET_STAFF": return getTopStaff();
             case "GET_VIP": return getVIPCustomers();
-            case "GET_UI_HELP": return fallbackLocalSearch(query); // 👈 Routes "Where is Export?" to KB
+            case "GET_UI_HELP": return fallbackLocalSearch(query);
             case "GREETING": return "👋 Hello! I am your SmartStore AI.";
             default: return fallbackLocalSearch(query); 
         }
     }
 
-    // ==========================================================
-    // 📊 DATA FETCHERS
-    // ==========================================================
+    // ... [Previous Helper Methods like getFeedbackSummary, getRecentTransactions etc. remain the same] ...
 
     private String getFeedbackSummary() {
         long count = feedbackRepo.count();
@@ -134,23 +126,20 @@ public class ChatbotService {
     }
     
     private String getTopStaff() {
-        // 1. Get Active Staff Count
         long staffCount = saleRepo.findAll().stream()
                 .map(Sale::getCashierName)
                 .filter(Objects::nonNull)
                 .distinct().count();
         
-        // 2. Find Top Performer
         Map<String, Long> stats = saleRepo.findAll().stream()
             .collect(Collectors.groupingBy(s -> s.getCashierName() != null ? s.getCashierName() : "Unknown", Collectors.counting()));
         
         String best = stats.entrySet().stream().max(Map.Entry.comparingByValue())
-                   .map(e -> e.getKey() + " (" + e.getValue() + " sales)").orElse("No data.");
+                    .map(e -> e.getKey() + " (" + e.getValue() + " sales)").orElse("No data.");
 
         return "👥 **Staff Overview:**\n• Active Staff: " + staffCount + "\n• 🏆 Top Performer: " + best;
     }
 
-    // 🔌 Talk to Python Service
     private String getIntentFromAI(String query) {
         try {
             Map<String, String> payload = new HashMap<>();
@@ -166,19 +155,18 @@ public class ChatbotService {
         return "UNKNOWN"; 
     }
 
-    // 🔍 Fallback Logic
     private String fallbackLocalSearch(String q) {
         q = q.toLowerCase();
         if (q.contains("price") || q.contains("cost") || q.contains("how much") && !q.contains("staff")) {
             return getProductDetails(q);
         }
         for (Map.Entry<String, String> entry : knowledgeBase.entrySet()) {
-            // Check if the query contains the key (e.g. "where is export" contains "export")
             if (q.contains(entry.getKey())) return "💡 " + entry.getValue();
         }
         return "🤖 I'm not sure about that. Try asking 'Total Revenue', 'Low Stock', or 'Predict Sales'.";
     }
 
+    // 🚨 UPDATED: Uses BigDecimal and new getters
     private String getProductDetails(String query) {
         String search = query.replace("price of", "").replace("how much is", "").replace("cost of", "").trim();
         List<Product> products = productRepo.findAll();
@@ -188,26 +176,40 @@ public class ChatbotService {
 
         if (match.isPresent()) {
             Product p = match.get();
-            double profit = p.getPrice() - (p.getCostPrice() != null ? p.getCostPrice() : 0);
-            return "🏷️ **" + p.getName() + "**\n• Price: ₹" + p.getPrice() + "\n• Stock: " + p.getStock() + "\n• Margin: ₹" + profit;
+            BigDecimal sellingPrice = p.getSellingPrice();
+            BigDecimal buyingPrice = p.getBuyingPrice() != null ? p.getBuyingPrice() : BigDecimal.ZERO;
+            BigDecimal margin = sellingPrice.subtract(buyingPrice);
+
+            return "🏷️ **" + p.getName() + "**\n• Selling Price: ₹" + sellingPrice + "\n• Buying Price: ₹" + buyingPrice + "\n• Stock: " + p.getStock() + "\n• Profit Margin: ₹" + margin;
         }
         return "❌ I couldn't find a product matching '" + search + "'.";
     }
 
+    // 🚨 UPDATED: Uses BigDecimal for profit calc
     private String getProfitSummary() {
         LocalDateTime start = LocalDate.now().atStartOfDay();
         List<Sale> sales = saleRepo.findSalesWithItems(start, LocalDateTime.now());
-        double revenue = 0, cost = 0;
+        
+        BigDecimal revenue = BigDecimal.ZERO;
+        BigDecimal cost = BigDecimal.ZERO;
+
         for(Sale s : sales) {
-            revenue += s.getTotalAmount().doubleValue();
+            revenue = revenue.add(s.getTotalAmount() != null ? s.getTotalAmount() : BigDecimal.ZERO);
+            
             if(s.getItems() != null) {
-                for(var item : s.getItems()) {
+                for(SaleItem item : s.getItems()) {
                       Product p = productRepo.findById(item.getProductId()).orElse(null);
-                      if(p != null && p.getCostPrice() != null) cost += p.getCostPrice() * item.getQuantity();
+                      if(p != null && p.getBuyingPrice() != null) {
+                          // Cost = BuyingPrice * Qty
+                          BigDecimal itemCost = p.getBuyingPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                          cost = cost.add(itemCost);
+                      }
                 }
             }
         }
-        return "💰 **Net Profit Today**\nRevenue: ₹" + String.format("%.2f", revenue) + "\nCost: ₹" + String.format("%.2f", cost) + "\nProfit: ₹" + String.format("%.2f", (revenue - cost));
+        
+        BigDecimal profit = revenue.subtract(cost);
+        return "💰 **Net Profit Today**\nRevenue: ₹" + revenue + "\nCost: ₹" + cost + "\nProfit: ₹" + profit;
     }
 
     private String getRevenueSummary(String query) {
@@ -228,8 +230,8 @@ public class ChatbotService {
            .flatMap(s -> s.getItems().stream())
            .collect(Collectors.groupingBy(SaleItem::getProductName, Collectors.summingInt(SaleItem::getQuantity)));
        return "🔥 **Top Best Sellers:**\n" + counts.entrySet().stream()
-              .sorted((a,b) -> b.getValue().compareTo(a.getValue())).limit(3)
-              .map(e -> "• " + e.getKey() + " (" + e.getValue() + " sold)").collect(Collectors.joining("\n"));
+             .sorted((a,b) -> b.getValue().compareTo(a.getValue())).limit(3)
+             .map(e -> "• " + e.getKey() + " (" + e.getValue() + " sold)").collect(Collectors.joining("\n"));
     }
 
     private String getAIForecast() {

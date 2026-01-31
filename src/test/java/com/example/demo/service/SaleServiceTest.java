@@ -31,7 +31,7 @@ public class SaleServiceTest {
 
     @Test
     public void testCreateSale_CalculatesTotalCorrectly() {
-        // 1. SETUP: Prepare fake data
+        // 1. SETUP: Prepare fake data (Simulating JSON Request)
         Map<String, Object> request = new HashMap<>();
         request.put("paymentMethod", "Cash");
         request.put("status", "Paid");
@@ -44,13 +44,13 @@ public class SaleServiceTest {
         Map<String, Object> item1 = new HashMap<>();
         item1.put("productId", 101);
         item1.put("quantity", 1);
-        item1.put("price", 50.0); // 👈 ADDED: Service expects price in the map
+        item1.put("price", 50.0); // Input from JSON usually comes as Double
         items.add(item1);
 
         Map<String, Object> item2 = new HashMap<>();
         item2.put("productId", 102); 
         item2.put("quantity", 1);
-        item2.put("price", 50.0); // 👈 ADDED: Service expects price in the map
+        item2.put("price", 50.0);
         items.add(item2);
 
         request.put("items", items);
@@ -62,9 +62,13 @@ public class SaleServiceTest {
         fakeProduct.setId(101L);
         fakeProduct.setStock(10);
         fakeProduct.setName("Test Product");
-        fakeProduct.setPrice(50.00); 
+        
+        // 🚨 UPDATED: Use BigDecimal and new setters
+        fakeProduct.setSellingPrice(BigDecimal.valueOf(50.00)); 
+        fakeProduct.setBuyingPrice(BigDecimal.valueOf(40.00)); // Set valid cost price
         
         // When service asks for a product, give them this fake one
+        // (Returns same product for both ID 101 and 102 for simplicity in this test)
         when(productRepo.findById(anyLong())).thenReturn(Optional.of(fakeProduct));
         
         // B. Mock Sale (The Transaction)
@@ -73,16 +77,16 @@ public class SaleServiceTest {
         // C. Mock Customer (The CRM)
         when(customerRepo.findByPhone(anyString())).thenReturn(null);
 
-        // 2. EXECUTE (✅ FIXED: changed processSale -> createSale)
+        // 2. EXECUTE
         Sale result = saleService.createSale(request);
 
         // 3. VERIFY
-        // 50.00 + 50.00 = 100.0
+        // 50.00 + 50.00 = 100.00
         // Use compareTo for safe BigDecimal comparison
-        assertEquals(0, new BigDecimal("100.0").compareTo(result.getTotalAmount()));
+        assertEquals(0, new BigDecimal("100.00").compareTo(result.getTotalAmount()));
         
         verify(productRepo, times(2)).save(any(Product.class)); // Stock updated twice (once per item)
-        verify(customerRepo, times(1)).save(any(Customer.class)); // ✅ FIXED: Customer saved once
+        verify(customerRepo, times(1)).save(any(Customer.class)); // Customer saved once
         
         System.out.println("✅ TEST PASSED: Revenue Calculation Verified!");
     }

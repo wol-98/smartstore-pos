@@ -30,12 +30,11 @@ public class DashboardService {
         // 1. Get Filtered Sales (Today/Selected Range)
         List<Sale> sales = saleRepo.findSalesWithItems(startDt, endDt);
         
-        // 2. 🚀 NEW: Get Lifetime Count (e.g., 84) to match Invoice IDs
         long lifetimeOrders = saleRepo.count();
 
         double totalRevenue = 0.0;
         double totalCost = 0.0;
-        int periodOrders = sales.size(); // Orders in the selected range (e.g., 5 today)
+        int periodOrders = sales.size(); 
         Set<String> lowStockItems = new HashSet<>();
 
         // 📊 Data Containers
@@ -71,14 +70,22 @@ public class DashboardService {
                 for (SaleItem item : sale.getItems()) {
                     Product p = productRepo.findById(item.getProductId()).orElse(null);
                     if (p != null) {
-                        if (p.getCostPrice() != null) {
-                            totalCost += p.getCostPrice() * item.getQuantity();
+                        // 🚨 UPDATED: Use Buying Price (BigDecimal)
+                        if (p.getBuyingPrice() != null) {
+                            totalCost += p.getBuyingPrice().doubleValue() * item.getQuantity();
                         }
+                        
                         if (p.getStock() <= 5) {
                             lowStockItems.add(p.getName());
                         }
+                        
+                        // 🚨 UPDATED: Handle BigDecimal Price
                         if (p.getCategory() != null) {
-                            double lineTotal = item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())).doubleValue();
+                            // If item.getPrice() is Double in SaleItem, use BigDecimal.valueOf, otherwise just .multiply
+                            // Assuming SaleItem still has Double or BigDecimal, we convert to double safely
+                            double unitPrice = (item.getPrice() != null) ? item.getPrice().doubleValue() : 0.0;
+                            double lineTotal = unitPrice * item.getQuantity();
+                            
                             categoryRevenue.put(p.getCategory(), categoryRevenue.getOrDefault(p.getCategory(), 0.0) + lineTotal);
                         }
                         productSales.put(item.getProductName(), productSales.getOrDefault(item.getProductName(), 0) + item.getQuantity());
@@ -101,8 +108,8 @@ public class DashboardService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("totalRevenue", totalRevenue);
-        response.put("totalOrders", periodOrders); // Today's Count
-        response.put("lifetimeOrders", lifetimeOrders); // 🚀 Lifetime Count (84)
+        response.put("totalOrders", periodOrders); 
+        response.put("lifetimeOrders", lifetimeOrders); 
         response.put("lowStockCount", lowStockItems.size());
         response.put("totalProfit", totalProfit);
         response.put("profitMargin", profitMargin);

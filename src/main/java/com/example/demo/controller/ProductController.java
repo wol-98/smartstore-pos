@@ -2,12 +2,13 @@ package com.example.demo.controller;
 
 import com.example.demo.model.Product;
 import com.example.demo.repository.ProductRepository;
-import com.example.demo.service.ExcelService; // 👈 NEW IMPORT
+import com.example.demo.service.ExcelService; 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity; // 👈 NEW IMPORT
+import org.springframework.http.ResponseEntity; 
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile; // 👈 NEW IMPORT
+import org.springframework.web.multipart.MultipartFile; 
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -18,7 +19,7 @@ public class ProductController {
     private ProductRepository productRepo;
     
     @Autowired 
-    private ExcelService excelService; // 👈 Inject the Service
+    private ExcelService excelService; 
 
     @GetMapping
     public List<Product> getAllProducts() {
@@ -27,10 +28,14 @@ public class ProductController {
 
     @PostMapping
     public Product createProduct(@RequestBody Product product) {
+        // 🛡️ Safety: If Buying Price is missing, auto-calc 85% of Selling Price
+        if (product.getBuyingPrice() == null && product.getSellingPrice() != null) {
+            product.setBuyingPrice(product.getSellingPrice().multiply(BigDecimal.valueOf(0.85)));
+        }
         return productRepo.save(product);
     }
 
-    // --- 🚀 NEW: BULK UPLOAD ENDPOINT ---
+    // --- 🚀 BULK UPLOAD ENDPOINT ---
     @PostMapping("/upload")
     public ResponseEntity<?> uploadProducts(@RequestParam("file") MultipartFile file) {
         try {
@@ -51,12 +56,20 @@ public class ProductController {
         Product product = productRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        // Update Standard Fields
         product.setName(productDetails.getName());
         product.setBrand(productDetails.getBrand());
         product.setCategory(productDetails.getCategory());
-        product.setPrice(productDetails.getPrice());
+        
+        // 🚨 CRITICAL UPDATE: Map new BigDecimal fields
+        product.setSellingPrice(productDetails.getSellingPrice());
+        product.setBuyingPrice(productDetails.getBuyingPrice());
+
+        // Update Inventory Fields
         product.setStock(productDetails.getStock());
+        product.setMinStock(productDetails.getMinStock());
         product.setDiscount(productDetails.getDiscount());
+        product.setSupplierId(productDetails.getSupplierId());
 
         return productRepo.save(product);
     }

@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.List;
 @Service
 public class ExcelService {
 
-    // --- 1. EXISTING EXPORT METHOD (Kept exactly the same) ---
+    // --- 1. EXISTING EXPORT METHOD ---
     public ByteArrayInputStream exportSalesToExcel(List<Sale> sales) {
         try (Workbook workbook = new XSSFWorkbook(); 
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -73,7 +74,7 @@ public class ExcelService {
         }
     }
 
-    // --- 2. 🆕 NEW IMPORT METHOD (Add this!) ---
+    // --- 2. 🆕 IMPORT METHOD (UPDATED FOR NEW PRODUCT CLASS) ---
     public List<Product> parseExcelFile(MultipartFile file) {
         List<Product> products = new ArrayList<>();
 
@@ -93,13 +94,20 @@ public class ExcelService {
 
                 Product product = new Product();
                 
-                // Reading Columns: Name | Brand | Category | Price | Stock
-                // Using "safe" checks to avoid crashes on empty cells
+                // Reading Columns: Name | Brand | Category | Selling Price | Stock
                 if(currentRow.getCell(0) != null) product.setName(currentRow.getCell(0).getStringCellValue());
                 if(currentRow.getCell(1) != null) product.setBrand(currentRow.getCell(1).getStringCellValue());
                 if(currentRow.getCell(2) != null) product.setCategory(currentRow.getCell(2).getStringCellValue());
                 
-                if(currentRow.getCell(3) != null) product.setPrice(currentRow.getCell(3).getNumericCellValue());
+                // 🚨 UPDATED: Handle BigDecimal Price
+                if(currentRow.getCell(3) != null) {
+                    double sellPriceVal = currentRow.getCell(3).getNumericCellValue();
+                    product.setSellingPrice(BigDecimal.valueOf(sellPriceVal));
+                    
+                    // 🚀 AUTO-CALCULATE Buying Price (85% of Selling Price) to ensure non-null constraint
+                    product.setBuyingPrice(BigDecimal.valueOf(sellPriceVal * 0.85));
+                }
+
                 if(currentRow.getCell(4) != null) product.setStock((int) currentRow.getCell(4).getNumericCellValue());
                 
                 // Set Defaults
