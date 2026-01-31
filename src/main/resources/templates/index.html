@@ -11,7 +11,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
-        /* --- 🎨 ENTERPRISE GLASS THEME --- */
+        /* --- 🎨 ENTERPRISE GLASS THEME (ORIGINAL) --- */
         :root { 
             --primary: #7e22ce; --primary-dark: #6b21a8; --secondary: #10B981; --danger: #EF4444; 
             --warning: #F59E0B; --dark: #1e293b; 
@@ -43,7 +43,7 @@
         }
         .pos-billing-panel { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
         
-        /* RESPONSIVE GRID */
+        /* RESPONSIVE GRID (ORIGINAL) */
         .grid-dashboard-top { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 20px; }
         .grid-dashboard-mid { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 20px; margin-bottom: 20px; } 
         .grid-dashboard-lower { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -71,7 +71,10 @@
 
         .billing-header { padding: 15px; background: var(--dark); color: white; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
         .billing-tools { padding: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 8px; background: rgba(255,255,255,0.1); }
-        .billing-cart-area { flex-grow: 1; overflow-y: auto; background: transparent; }
+        
+        /* FIX: min-height: 0 ensures the scroll area yields space to the footer so button isn't hidden */
+        .billing-cart-area { flex-grow: 1; overflow-y: auto; background: transparent; min-height: 0; }
+        
         .billing-footer { padding: 20px; background: rgba(255,255,255,0.2); border-top: 1px solid var(--border); flex-shrink: 0; }
         .pos-catalog-panel { display: flex; flex-direction: column; overflow: hidden; height: 100%; }
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px; }
@@ -121,6 +124,17 @@
         .msg { padding: 8px 12px; border-radius: 12px; max-width: 80%; line-height: 1.4; }
         .msg-user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
         .msg-bot { align-self: flex-start; background: rgba(0,0,0,0.05); color: var(--text-main); border-bottom-left-radius: 2px; }
+
+        /* --- PAYMENT STYLES (PRESERVED) --- */
+        .payment-panel { background: rgba(0,0,0,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 15px; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .card-input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card-input-grid label { font-size: 0.75em; font-weight: bold; color: var(--text-muted); margin-bottom: 3px; display: block; }
+        
+        /* Real World Specifics (From your preferred version) */
+        .edc-screen { background: #000; color: #00ff00; font-family: 'Courier New', monospace; padding: 15px; border-radius: 8px; margin-top: 10px; text-align: center; border: 4px solid #333; box-shadow: inset 0 0 10px #000; }
+        .input-group-real { margin-bottom: 10px; }
+        .input-group-real label { display: block; font-size: 0.8em; font-weight: bold; margin-bottom: 5px; color: var(--text-muted); }
     </style>
 </head>
 <body id="mainBody">
@@ -131,7 +145,7 @@
         </div>
         
         <div class="header-controls">
-            <button onclick="toggleSection('supplierSection')" class="btn-glass" title="Manage Suppliers">
+            <button id="btnSupplier" onclick="toggleSection('supplierSection')" class="btn-glass hidden" title="Manage Suppliers">
                 <i class="fa-solid fa-truck-field"></i> Suppliers
             </button>
             <a href="/kiosk.html" target="_blank" style="text-decoration:none;">
@@ -344,7 +358,47 @@
 
                     <label style="font-size:0.8em; color:var(--text-muted); font-weight:600;">Customer Details</label>
                     <div style="display:flex; gap:10px; margin-bottom:15px;"><input type="email" id="custEmail" placeholder="Email (For Invoice)" style="margin:0; width:50%;"><input type="text" id="custPhone" placeholder="Phone (Loyalty)" style="margin:0; width:50%;"></div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;"><select id="payMethod"><option>Cash</option><option>UPI</option><option>Card</option></select><select id="payStatus"><option>Paid</option><option>Pending</option></select></div>
+                    
+                    <div style="margin-bottom:15px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                            <select id="payMethod" onchange="togglePaymentInterface()">
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI (Dynamic QR)</option>
+                                <option value="Card">Card (External EDC)</option>
+                            </select>
+                            <select id="payStatus">
+                                <option value="Paid">Paid</option>
+                                <option value="Pending">Pending</option>
+                            </select>
+                        </div>
+                    
+                        <div id="cardInterface" class="payment-panel hidden">
+                            <div class="flex-between" style="margin-bottom:10px;">
+                                <div style="font-size:0.9em; font-weight:bold; color:var(--primary);"><i class="fa-solid fa-credit-card"></i> External EDC</div>
+                                <div style="font-size:0.8em; color:var(--text-muted);">Swipe Card on Machine</div>
+                            </div>
+                            <div class="edc-screen">
+                                <div style="font-size:0.8em;">AMOUNT TO SWIPE</div>
+                                <div style="font-size:1.4em; font-weight:bold;">INR <span id="edcAmountDisplay">0.00</span></div>
+                                <div style="font-size:0.7em; margin-top:5px;">WAITING FOR CARD...</div>
+                            </div>
+                            <div style="margin-top:15px;" class="input-group-real">
+                                <label>AUTH CODE / REF NO. (From Charge Slip)</label>
+                                <input type="text" id="cardAuthCode" placeholder="e.g. 082412" style="font-family:monospace; letter-spacing:2px;">
+                            </div>
+                        </div>
+                    
+                        <div id="upiInterface" class="payment-panel hidden" style="text-align:center;">
+                            <label>Scan with Any App (GPay/PhonePe)</label>
+                            <div id="qrPlaceholder" style="background:white; padding:10px; width:150px; margin:10px auto; border-radius:8px;">
+                                <img id="upiQrCode" src="" alt="QR Code" style="width:100%; height:100%; display:none;">
+                                <div id="qrLoader" style="padding:40px;"><i class="fa-solid fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i></div>
+                            </div>
+                            <div style="font-size:0.8em; color:var(--text-muted);">Merchant: SmartStore Inc</div>
+                            <div style="font-weight:bold; font-size:1.1em; margin-bottom:5px;">₹<span id="upiAmountDisplay">0.00</span></div>
+                        </div>
+                    </div>
+
                     <button id="btnCheckout" class="btn-success" onclick="checkout()" style="padding:15px; font-size:1.1em; width:100%;">Complete Transaction <i class="fa-solid fa-arrow-right"></i></button>
                     
                     <div id="postSale" class="success-box hidden">
@@ -372,6 +426,9 @@
             let products = [], cart = [], lastSaleId = null, html5QrcodeScanner = null;
             let lastReceiptData = null; 
 
+            // REAL WORLD CONFIG: Replace this with your actual UPI ID
+            const MERCHANT_VPA = "smartstore-demo@upi"; 
+            
             let deleteTimeout = null; 
             let productToDelete = null;
             let chartInstances = {};
@@ -397,18 +454,34 @@
                 fetch('/api/me').then(r => r.json()).then(d => { 
                     document.getElementById('currentUserDisplay').innerText = d.username + " (" + (d.role || 'Staff') + ")"; 
                     document.getElementById('cashierName').value = d.username; 
+                    
                     if(d.role === 'ADMIN'){ 
                         document.getElementById('mainBody').classList.add('admin-view'); 
                         document.getElementById('dashboardSection').classList.remove('hidden'); 
                         document.getElementById('inventorySection').classList.remove('hidden'); 
+                        
+                        // SHOW SUPPLIER BUTTON FOR ADMIN
+                        const btnSupplier = document.getElementById('btnSupplier');
+                        if(btnSupplier) btnSupplier.classList.remove('hidden');
+
                         document.getElementById('chat-widget').style.display = 'flex';
                         loadDashboard(); loadInventory(); loadFeedback(); loadSuppliers(); 
                     } else { 
                         document.getElementById('mainBody').classList.remove('admin-view'); 
                         document.getElementById('billingSection').classList.remove('hidden'); 
-                        document.getElementById('adminControls').remove(); 
-                        document.getElementById('exportBtn').remove(); 
-                        document.getElementById('importBtn').remove(); 
+                        
+                        // HIDE ADMIN CONTROLS FOR STAFF
+                        const adminControls = document.getElementById('adminControls');
+                        if(adminControls) adminControls.remove(); 
+                        const exportBtn = document.getElementById('exportBtn');
+                        if(exportBtn) exportBtn.remove();
+                        const importBtn = document.getElementById('importBtn');
+                        if(importBtn) importBtn.remove();
+                        
+                        // ENSURE SUPPLIER BUTTON IS HIDDEN
+                        const btnSupplier = document.getElementById('btnSupplier');
+                        if(btnSupplier) btnSupplier.classList.add('hidden');
+
                         loadInventory(); 
                     } 
                 }); 
@@ -462,12 +535,90 @@
             function addToCart(o){ playBeep(); let p = products.find(x => x.id === o.id); let i = cart.find(x => x.productId === o.id); let qty = parseInt(document.getElementById('bulkQty').value) || 1; if(p.stock < (i ? i.quantity + qty : qty)) return alert("Out of Stock"); if(i) i.quantity += qty; else cart.push({productId:p.id, name:p.name, price:p.price, quantity:qty}); document.getElementById('bulkQty').value = 1; renderCart(); }
             function removeFromCart(i){ cart.splice(i, 1); renderCart(); }
             function clearCart(){ if(confirm("Clear?")) { cart = []; discountRate = 0; renderCart(); document.getElementById('couponCode').value = ''; document.getElementById('couponMsg').innerHTML = ''; } }
-            function renderCart(){ document.getElementById('cartTable').innerHTML = cart.map((i,x) => `<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td><td onclick="removeFromCart(${x})" style="color:red; cursor:pointer; text-align:center;">×</td></tr>`).join(''); const subtotal = cart.reduce((a,b) => a + (b.price * b.quantity), 0); const discountAmount = subtotal * discountRate; const total = subtotal - discountAmount; document.getElementById('cartSubtotal').innerText = subtotal.toFixed(2); document.getElementById('cartDiscount').innerText = discountAmount.toFixed(2); document.getElementById('cartTotal').innerText = total.toFixed(2); }
+            function renderCart(){ 
+                document.getElementById('cartTable').innerHTML = cart.map((i,x) => `<tr><td>${i.name}</td><td style="text-align:center;">${i.quantity}</td><td style="text-align:right;">₹${(i.price*i.quantity).toFixed(2)}</td><td onclick="removeFromCart(${x})" style="color:red; cursor:pointer; text-align:center;">×</td></tr>`).join(''); 
+                const subtotal = cart.reduce((a,b) => a + (b.price * b.quantity), 0); 
+                const discountAmount = subtotal * discountRate; 
+                const total = subtotal - discountAmount; 
+                document.getElementById('cartSubtotal').innerText = subtotal.toFixed(2); 
+                document.getElementById('cartDiscount').innerText = discountAmount.toFixed(2); 
+                document.getElementById('cartTotal').innerText = total.toFixed(2); 
+                
+                // Update Dynamic Interfaces if visible
+                if(!document.getElementById('cardInterface').classList.contains('hidden')){
+                    document.getElementById('edcAmountDisplay').innerText = total.toFixed(2);
+                }
+                if(!document.getElementById('upiInterface').classList.contains('hidden')){
+                    document.getElementById('upiAmountDisplay').innerText = total.toFixed(2);
+                    if(total > 0) generateRealUPIQr(total.toFixed(2));
+                }
+            }
             function applyCoupon() { const code = document.getElementById('couponCode').value.trim().toLowerCase(); const msg = document.getElementById('couponMsg'); if (valid_coupons.includes(code)) { discountRate = 0.15; msg.innerHTML = '<span style="color:#10B981; font-weight:bold;">✅ 15% Discount Applied!</span>'; renderCart(); } else { discountRate = 0; msg.innerHTML = '<span style="color:#EF4444; font-weight:bold;">❌ Invalid Code</span>'; renderCart(); } }
 
-            // --- CHECKOUT ---
+            // --- REAL WORLD PAYMENT LOGIC ---
+            function togglePaymentInterface() {
+                const method = document.getElementById('payMethod').value;
+                const cardPanel = document.getElementById('cardInterface');
+                const upiPanel = document.getElementById('upiInterface');
+                const totalAmount = document.getElementById('cartTotal').innerText;
+
+                // Reset Views
+                cardPanel.classList.add('hidden');
+                upiPanel.classList.add('hidden');
+
+                if (method === 'Card') {
+                    cardPanel.classList.remove('hidden');
+                    document.getElementById('edcAmountDisplay').innerText = totalAmount;
+                    document.getElementById('cardAuthCode').focus();
+                } 
+                else if (method === 'UPI') {
+                    upiPanel.classList.remove('hidden');
+                    document.getElementById('upiAmountDisplay').innerText = totalAmount;
+                    if(parseFloat(totalAmount) > 0) generateRealUPIQr(totalAmount);
+                }
+            }
+
+            function generateRealUPIQr(amount) {
+                const qrImg = document.getElementById('upiQrCode');
+                const loader = document.getElementById('qrLoader');
+                
+                qrImg.style.display = 'none';
+                loader.style.display = 'block';
+
+                // REAL UPI LINK FORMAT (Standardized)
+                // pa = Payee Address (VPA), pn = Payee Name, am = Amount
+                const upiLink = `upi://pay?pa=${MERCHANT_VPA}&pn=SmartStore&am=${amount}&cu=INR`;
+                
+                // Generate QR using API
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
+                
+                qrImg.onload = () => {
+                    loader.style.display = 'none';
+                    qrImg.style.display = 'block';
+                };
+            }
+
+            // --- CHECKOUT (FIXED: Visible button + Safety Check) ---
             function checkout() { 
                 if (!cart.length) return alert("Cart is empty!"); 
+                const method = document.getElementById('payMethod').value;
+                
+                // 1. REAL WORLD CARD VALIDATION
+                if (method === 'Card') {
+                    const authCode = document.getElementById('cardAuthCode').value.trim();
+                    if(authCode.length < 4) {
+                        return alert("❌ TRANSACTION FAILED\nPlease enter the Auth Code/Ref No. from the Card Machine receipt.");
+                    }
+                }
+
+                // 2. UPI VALIDATION
+                if (method === 'UPI') {
+                    const status = document.getElementById('payStatus').value;
+                    if (status !== 'Paid') {
+                        if(!confirm("⚠️ Payment status is 'Pending'.\nDid you confirm the money reached your bank account?")) return;
+                    }
+                }
+
                 const btn = document.getElementById('btnCheckout'); 
                 const originalText = btn.innerText; 
                 btn.innerText = 'Processing...'; 
@@ -484,7 +635,7 @@
                         items: cart, 
                         cashierName: cashier, 
                         customerPhone: customer, 
-                        paymentMethod: document.getElementById('payMethod').value, 
+                        paymentMethod: method, 
                         status: document.getElementById('payStatus').value 
                     }) 
                 })
@@ -501,7 +652,14 @@
                     };
                     document.getElementById('btnCheckout').classList.add('hidden'); 
                     document.getElementById('postSale').classList.remove('hidden'); 
-                    document.getElementById('shareEmail').value = document.getElementById('custEmail').value; 
+                    
+                    // FIXED: Safety check before accessing shareEmail
+                    const shareInput = document.getElementById('shareEmail');
+                    const custInput = document.getElementById('custEmail');
+                    if (shareInput && custInput) {
+                        shareInput.value = custInput.value;
+                    }
+
                     loadInventory(); 
                     loadDashboard(); 
                 })
@@ -512,7 +670,25 @@
                 }); 
             }
             
-            function startNewSale(){ cart=[]; discountRate=0; document.getElementById('couponCode').value=''; document.getElementById('couponMsg').innerHTML=''; renderCart(); document.getElementById('postSale').classList.add('hidden'); document.getElementById('btnCheckout').classList.remove('hidden'); document.getElementById('btnCheckout').innerText='Complete Transaction'; document.getElementById('btnCheckout').disabled = false; document.getElementById('shareEmail').value=''; document.getElementById('custEmail').value=''; document.getElementById('custPhone').value=''; }
+            function startNewSale(){ 
+                cart=[]; discountRate=0; 
+                document.getElementById('couponCode').value=''; 
+                document.getElementById('couponMsg').innerHTML=''; 
+                renderCart(); 
+                document.getElementById('postSale').classList.add('hidden'); 
+                document.getElementById('btnCheckout').classList.remove('hidden'); 
+                document.getElementById('btnCheckout').innerText='Complete Transaction'; 
+                document.getElementById('btnCheckout').disabled = false; 
+                document.getElementById('shareEmail').value=''; 
+                document.getElementById('custEmail').value=''; 
+                document.getElementById('custPhone').value=''; 
+                document.getElementById('cardAuthCode').value=''; 
+                
+                // Reset Payment UI
+                document.getElementById('payMethod').value = 'Cash';
+                togglePaymentInterface();
+            }
+
             function loadSuppliers() { fetch(`${API}/suppliers`).then(r => r.json()).then(d => { const t = document.getElementById('supplierTable'); t.innerHTML = d.map(s => `<tr><td>#${s.id}</td><td><b>${s.name}</b></td><td>${s.contactPerson||'-'}</td><td>${s.email||'-'}</td><td><button onclick="deleteSupplier(${s.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;">Delete</button></td></tr>`).join(''); const sel = document.getElementById('prodSupplier'); sel.innerHTML = '<option value="">-- Select Supplier --</option>' + d.map(s => `<option value="${s.id}">${s.name}</option>`).join(''); }); }
             function saveSupplier() { const data = { name: document.getElementById('suppName').value, contactPerson: document.getElementById('suppContact').value, email: document.getElementById('suppEmail').value, phone: document.getElementById('suppPhone').value, address: document.getElementById('suppAddress').value }; if(!data.name) return alert("Company Name is required"); fetch(`${API}/suppliers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => { alert("Supplier Saved!"); document.querySelectorAll('#supplierSection input').forEach(i => i.value = ''); loadSuppliers(); }); }
             function deleteSupplier(id) { if(confirm("Delete this supplier?")) { fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }).then(loadSuppliers); } }
@@ -522,14 +698,31 @@
             function saveProduct() { const id = document.getElementById('prodId').value; const payload = { name: document.getElementById('prodName').value, brand: document.getElementById('prodBrand').value, category: document.getElementById('prodCategory').value, price: parseFloat(document.getElementById('prodPrice').value), costPrice: parseFloat(document.getElementById('prodCostPrice').value), supplierId: document.getElementById('prodSupplier').value || null, stock: parseInt(document.getElementById('prodStock').value) }; if (id) payload.id = id; fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); }); }
             function deleteProduct(id) { const row = document.querySelector(`tr[data-id="${id}"]`); if (row) { row.style.opacity = '0.3'; row.style.pointerEvents = 'none'; } productToDelete = id; document.getElementById('undoToast').className = "show"; deleteTimeout = setTimeout(() => { fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory); document.getElementById('undoToast').className = ""; }, 4000); }
             function undoDelete() { clearTimeout(deleteTimeout); const row = document.querySelector(`tr[data-id="${productToDelete}"]`); if (row) { row.style.opacity = '1'; row.style.pointerEvents = 'auto'; } document.getElementById('undoToast').className = ""; }
-            function editProduct(id) { const p = products.find(x => x.id === id); document.getElementById('prodId').value = p.id; document.getElementById('prodName').value = p.name; document.getElementById('prodBrand').value = p.brand; document.getElementById('prodCategory').value = p.category; document.getElementById('prodPrice').value = p.price; document.getElementById('prodCostPrice').value = p.costPrice || ''; document.getElementById('prodStock').value = p.stock; document.getElementById('prodSupplier').value = p.supplierId || ""; document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Product'; document.getElementById('cancelBtn').classList.remove('hidden'); }
+            
+            // --- MODIFIED EDIT PRODUCT (Scroll to top) ---
+            function editProduct(id) { 
+                const p = products.find(x => x.id === id); 
+                document.getElementById('prodId').value = p.id; 
+                document.getElementById('prodName').value = p.name; 
+                document.getElementById('prodBrand').value = p.brand; 
+                document.getElementById('prodCategory').value = p.category; 
+                document.getElementById('prodPrice').value = p.price; 
+                document.getElementById('prodCostPrice').value = p.costPrice || ''; 
+                document.getElementById('prodStock').value = p.stock; 
+                document.getElementById('prodSupplier').value = p.supplierId || ""; 
+                document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Product'; 
+                document.getElementById('cancelBtn').classList.remove('hidden'); 
+                
+                // AUTO SCROLL FEATURE
+                document.getElementById('inventorySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
             function resetForm() { document.querySelectorAll('#inventorySection input').forEach(i => i.value=''); document.getElementById('prodId').value = ''; document.getElementById('prodSupplier').value = ''; document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Add to Inventory'; document.getElementById('cancelBtn').classList.add('hidden'); }
             function toggleScanner(){ const r=document.getElementById('reader'); if(r.style.display==='none'){ r.style.display='block'; html5QrcodeScanner=new Html5QrcodeScanner("reader",{fps:10,qrbox:250}); html5QrcodeScanner.render(t=>{ let p=products.find(x=>x.name.toLowerCase()===t.toLowerCase()||x.id==t); if(p){ addToCart({id:p.id}); html5QrcodeScanner.pause(); setTimeout(()=>html5QrcodeScanner.resume(),1500); } }); } else { if(html5QrcodeScanner) html5QrcodeScanner.clear(); r.style.display='none'; } }
             function uploadExcel(input) { const fd=new FormData(); fd.append("file", input.files[0]); fetch(`${API}/products/upload`,{method:'POST',body:fd}).then(r=>r.text()).then(m=>{ alert(m); loadInventory(); }); }
             function downloadExcel() { window.location.href = `${API}/sales/export`; }
             function downloadReceipt(){ window.open(`/api/sales/${lastSaleId}/pdf`); }
 
-            // 🟢 REFINED: SHARE RECEIPT (NO ALERT POPUP)
             function shareReceipt(event){ 
                 const e = document.getElementById('shareEmail').value; 
                 if (!e) return alert("Enter email."); 
@@ -537,15 +730,12 @@
                 const btn = event.currentTarget; 
                 const originalContent = btn.innerHTML; 
 
-                // 1. Visual feedback immediately
                 btn.disabled = true; 
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
                 
-                // 2. Fire the request
                 fetch(`${API}/sales/${lastSaleId}/share?email=${encodeURIComponent(e)}`, { method: 'POST' })
                     .then(r => {
                         if (r.ok) {
-                            // 3. Success State (UI change only, no popup)
                             btn.style.background = '#10B981'; 
                             btn.innerHTML = '<i class="fa-solid fa-check"></i>';
                             setTimeout(() => {
@@ -567,7 +757,6 @@
                     });
             }
             
-            // 🟢 THERMAL PRINT
             function printThermal() {
                 if (!lastReceiptData) { alert("No receipt data found!"); return; }
 
