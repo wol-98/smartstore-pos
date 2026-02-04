@@ -1,4 +1,4 @@
-# 🛒 SmartStore: AI-Powered POS & Inventory Ecosystem
+# SmartStore: AI-Powered POS & Inventory Ecosystem
 
 > **A "Hybrid Intelligence" retail platform connecting a Spring Boot backend, a Python AI brain, and a React Native mobile floor manager.**
 
