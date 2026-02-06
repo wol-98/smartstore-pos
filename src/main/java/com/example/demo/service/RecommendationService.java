@@ -18,21 +18,24 @@ public class RecommendationService {
     @Autowired private ProductRepository productRepo;
 
     public List<Product> getRecommendations(Long productId) {
-        // The final list of IDs we will recommend
         List<Long> recommendedIds = new ArrayList<>();
 
         // --- 🥇 PLAN A: HISTORY (Collaborative Filtering) ---
         // "People who bought this also bought..."
         List<Sale> salesWithProduct = saleRepo.findAll().stream()
+                // 🛡️ SAFETY CHECK 1: Ensure Items list exists
+                .filter(sale -> sale.getItems() != null)
+                // 🛡️ SAFETY CHECK 2: Handle Null Product IDs here to prevent crashes
                 .filter(sale -> sale.getItems().stream()
-                        .anyMatch(item -> item.getProductId().equals(productId)))
+                        .anyMatch(item -> item.getProductId() != null && item.getProductId().equals(productId)))
                 .collect(Collectors.toList());
 
         if (!salesWithProduct.isEmpty()) {
             Map<Long, Integer> frequencyMap = new HashMap<>();
             for (Sale sale : salesWithProduct) {
                 for (SaleItem item : sale.getItems()) {
-                    if (!item.getProductId().equals(productId)) {
+                    // 🛡️ SAFETY CHECK 3: Skip other broken items in the cart
+                    if (item.getProductId() != null && !item.getProductId().equals(productId)) {
                         frequencyMap.put(item.getProductId(), 
                                 frequencyMap.getOrDefault(item.getProductId(), 0) + 1);
                     }
@@ -50,9 +53,9 @@ public class RecommendationService {
         if (recommendedIds.size() < 3) {
             Product currentProduct = productRepo.findById(productId).orElse(null);
             
-            if (currentProduct != null) {
+            if (currentProduct != null && currentProduct.getCategory() != null) {
                 List<Product> categoryMates = productRepo.findAll().stream()
-                        .filter(p -> p.getCategory().equals(currentProduct.getCategory()))
+                        .filter(p -> p.getCategory() != null && p.getCategory().equals(currentProduct.getCategory()))
                         .filter(p -> !p.getId().equals(productId)) 
                         .filter(p -> !recommendedIds.contains(p.getId())) // Don't duplicate Plan A
                         .limit(3)
@@ -78,6 +81,8 @@ public class RecommendationService {
         }
 
         // Return final list (Top 3)
+        if (recommendedIds.isEmpty()) return new ArrayList<>();
+        
         return productRepo.findAllById(recommendedIds).stream()
                 .limit(3)
                 .collect(Collectors.toList());
@@ -89,9 +94,13 @@ public class RecommendationService {
         List<Sale> allSales = saleRepo.findAll();
 
         for (Sale sale : allSales) {
+            if (sale.getItems() == null) continue;
             for (SaleItem item : sale.getItems()) {
-                globalFreq.put(item.getProductId(), 
-                        globalFreq.getOrDefault(item.getProductId(), 0) + item.getQuantity());
+                // 🛡️ SAFETY CHECK 4: Ensure ID exists before counting
+                if (item.getProductId() != null) {
+                    globalFreq.put(item.getProductId(), 
+                            globalFreq.getOrDefault(item.getProductId(), 0) + item.getQuantity());
+                }
             }
         }
 

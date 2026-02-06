@@ -20,7 +20,7 @@ public class SaleService {
     @Autowired private CustomerRepository customerRepo; 
 
     @Transactional
-    public Sale createSale(Map<String, Object> payload) { // 👈 Renamed to match Controller
+    public Sale createSale(Map<String, Object> payload) { 
         
         // 1. Extract Data
         String cashierName = (String) payload.getOrDefault("cashierName", "Unknown");
@@ -61,10 +61,9 @@ public class SaleService {
             si.setProductName(p.getName());
             si.setQuantity(qty);
             
-            // Handle Price safely
             BigDecimal price = BigDecimal.valueOf(Double.parseDouble(item.get("price").toString()));
             si.setPrice(price);
-            si.setSale(sale); // 🔗 Link item back to parent Sale (Crucial for JPA)
+            si.setSale(sale); 
             
             saleItems.add(si);
             totalAmount = totalAmount.add(price.multiply(BigDecimal.valueOf(qty)));
@@ -73,7 +72,9 @@ public class SaleService {
         sale.setItems(saleItems);
         sale.setTotalAmount(totalAmount);
 
-        // 3. 👑 LOYALTY POINTS LOGIC (Dynamic)
+        // =================================================================================
+        // 3. 🧠 ADVANCED FEATURE: TIERED LOYALTY SYSTEM (Gold/Silver Status)
+        // =================================================================================
         if (custPhone != null && !custPhone.trim().isEmpty()) {
             Customer customer = customerRepo.findByPhone(custPhone);
             
@@ -84,9 +85,25 @@ public class SaleService {
                 customer.setPoints(0);
             }
 
-            // Award 1 Point for every ₹10 spent
-            int newPoints = totalAmount.intValue() / 10;
-            customer.setPoints(customer.getPoints() + newPoints);
+            // --- 🚀 UPGRADE STARTS HERE ---
+            // Logic: High value customers earn points FASTER (Gamification)
+            double multiplier = 1.0;
+            int currentPoints = customer.getPoints() != null ? customer.getPoints() : 0;
+
+            if (currentPoints > 1000) {
+                multiplier = 2.0;       // 👑 GOLD TIER: 2x Points
+            } else if (currentPoints > 500) {
+                multiplier = 1.5;       // 🥈 SILVER TIER: 1.5x Points
+            }
+
+            // Base: 1 Point per ₹10 spent
+            int basePoints = totalAmount.intValue() / 10;
+            
+            // Final Calculation
+            int finalPoints = (int) (basePoints * multiplier);
+            
+            customer.setPoints(currentPoints + finalPoints);
+            // --- 🚀 UPGRADE ENDS HERE ---
             
             customerRepo.save(customer);
             sale.setCustomerId(customer.getId()); 

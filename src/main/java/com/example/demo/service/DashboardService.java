@@ -1,14 +1,17 @@
 package com.example.demo.service;
 
+import com.example.demo.model.Customer;
 import com.example.demo.model.Product;
 import com.example.demo.model.Sale;
 import com.example.demo.model.SaleItem;
+import com.example.demo.repository.CustomerRepository;
 import com.example.demo.repository.ProductRepository;
 import com.example.demo.repository.SaleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -19,110 +22,146 @@ public class DashboardService {
 
     @Autowired private SaleRepository saleRepo;
     @Autowired private ProductRepository productRepo;
+    @Autowired private CustomerRepository customerRepo; 
 
     // 🎯 TARGET: ₹20,000/day
     private static final double DAILY_TARGET = 20000.0;
 
     public Map<String, Object> getDashboardStats(LocalDate start, LocalDate end) {
+        // 1. Precise Date Range
         LocalDateTime startDt = start.atStartOfDay();
         LocalDateTime endDt = end.atTime(23, 59, 59);
 
-        // 1. Get Filtered Sales (Today/Selected Range)
+        // 2. Fetch Sales Data
         List<Sale> sales = saleRepo.findSalesWithItems(startDt, endDt);
-        
         long lifetimeOrders = saleRepo.count();
 
-        double totalRevenue = 0.0;
-        double totalCost = 0.0;
-        int periodOrders = sales.size(); 
-        Set<String> lowStockItems = new HashSet<>();
+        // --- 🔧 FIX: Correct Stock Logic (Check WHOLE Inventory) ---
+        // This fixes the issue where alerts were 0 because it only checked sold items.
+        List<Product> allProducts = productRepo.findAll();
+        long lowStockCount = allProducts.stream()
+                .filter(p -> p.getStock() != null && p.getStock() <= 5)
+                .count();
+        // -----------------------------------------------------------
 
-        // 📊 Data Containers
+        // 3. Initialize Counters
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        int periodOrders = sales.size(); 
+
+        // 📊 Maps for Charts
         Map<String, Integer> productSales = new HashMap<>();
-        Map<String, Double> categoryRevenue = new HashMap<>();
-        Map<String, Double> staffPerformance = new HashMap<>();
-        Map<String, Double> paymentStats = new HashMap<>();
+        Map<String, BigDecimal> categoryRevenue = new HashMap<>();
+        Map<String, BigDecimal> staffPerformance = new HashMap<>();
+        Map<String, BigDecimal> paymentStats = new HashMap<>();
         Map<Integer, Integer> hourlyTraffic = new HashMap<>(); 
 
-        // Initialize Hourly Map (0 to 23 hours)
+        // Initialize Hourly Map
         for(int i=9; i<=21; i++) hourlyTraffic.put(i, 0); 
 
+        // 4. MAIN ANALYTICS LOOP
         for (Sale sale : sales) {
-            double amount = sale.getTotalAmount().doubleValue();
-            totalRevenue += amount;
+            BigDecimal amount = (sale.getTotalAmount() != null) ? sale.getTotalAmount() : BigDecimal.ZERO;
+            totalRevenue = totalRevenue.add(amount);
 
-            // 1. Payment Methods 
+            // A. Payment Stats
             String pMethod = (sale.getPaymentMethod() != null) ? sale.getPaymentMethod().toUpperCase() : "CASH";
-            paymentStats.put(pMethod, paymentStats.getOrDefault(pMethod, 0.0) + amount);
+            paymentStats.merge(pMethod, amount, BigDecimal::add);
 
-            // 2. Staff Stats
+            // B. Staff Performance
             String cashier = (sale.getCashierName() != null) ? sale.getCashierName() : "Unknown";
-            staffPerformance.put(cashier, staffPerformance.getOrDefault(cashier, 0.0) + amount);
+            staffPerformance.merge(cashier, amount, BigDecimal::add);
 
-            // 3. Hourly Traffic 
-            int hour = sale.getDate().getHour();
-            if(hour >= 9 && hour <= 21) {
-                hourlyTraffic.put(hour, hourlyTraffic.getOrDefault(hour, 0) + 1);
+            // C. Hourly Traffic
+            if (sale.getDate() != null) {
+                int hour = sale.getDate().getHour();
+                if(hour >= 9 && hour <= 21) {
+                    hourlyTraffic.put(hour, hourlyTraffic.getOrDefault(hour, 0) + 1);
+                }
             }
 
-            // 4. Item Details
+            // D. Item Analysis
             if (sale.getItems() != null) {
                 for (SaleItem item : sale.getItems()) {
+                    // Safe Retrieval
+                    if (item.getProductId() == null) continue;
+
                     Product p = productRepo.findById(item.getProductId()).orElse(null);
+                    
                     if (p != null) {
-                        // 🚨 UPDATED: Use Buying Price (BigDecimal)
+                        // Profit Calculation
                         if (p.getBuyingPrice() != null) {
-                            totalCost += p.getBuyingPrice().doubleValue() * item.getQuantity();
+                            BigDecimal cost = p.getBuyingPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                            totalCost = totalCost.add(cost);
                         }
                         
-                        if (p.getStock() <= 5) {
-                            lowStockItems.add(p.getName());
-                        }
+                        // Note: Removed the old "Stock Alert" check here as it was incorrect.
                         
-                        // 🚨 UPDATED: Handle BigDecimal Price
+                        // Category Revenue
                         if (p.getCategory() != null) {
-                            // If item.getPrice() is Double in SaleItem, use BigDecimal.valueOf, otherwise just .multiply
-                            // Assuming SaleItem still has Double or BigDecimal, we convert to double safely
-                            double unitPrice = (item.getPrice() != null) ? item.getPrice().doubleValue() : 0.0;
-                            double lineTotal = unitPrice * item.getQuantity();
-                            
-                            categoryRevenue.put(p.getCategory(), categoryRevenue.getOrDefault(p.getCategory(), 0.0) + lineTotal);
+                            BigDecimal itemPrice = (item.getPrice() != null) ? item.getPrice() : BigDecimal.ZERO;
+                            BigDecimal lineTotal = itemPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
+                            categoryRevenue.merge(p.getCategory(), lineTotal, BigDecimal::add);
                         }
-                        productSales.put(item.getProductName(), productSales.getOrDefault(item.getProductName(), 0) + item.getQuantity());
+                        
+                        // Best Sellers Count
+                        String pName = (item.getProductName() != null) ? item.getProductName() : "Unknown";
+                        productSales.put(pName, productSales.getOrDefault(pName, 0) + item.getQuantity());
                     }
                 }
             }
         }
 
-        double totalProfit = totalRevenue - totalCost;
-        double profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0.0;
+        // 5. Final Calculations
+        BigDecimal totalProfit = totalRevenue.subtract(totalCost);
+        BigDecimal profitMargin = (totalRevenue.compareTo(BigDecimal.ZERO) > 0)
+                ? totalProfit.divide(totalRevenue, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                : BigDecimal.ZERO;
         
-        double targetPercent = (totalRevenue / DAILY_TARGET) * 100;
+        double targetPercent = (totalRevenue.doubleValue() / DAILY_TARGET) * 100;
         if(targetPercent > 100) targetPercent = 100;
 
-        // Sort Data
+        // 6. Sort & Package Response
+        
+        // Top 5 Products
         Map<String, Integer> topProducts = productSales.entrySet().stream()
-                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue())) // Descending
                 .limit(5)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+        // VIP Customers
+        List<Customer> topCustomers = new ArrayList<>();
+        try {
+            topCustomers = customerRepo.findTop20ByOrderByPointsDesc();
+        } catch (Exception e) {
+            System.err.println("Warning: Could not fetch VIP customers");
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("totalRevenue", totalRevenue);
         response.put("totalOrders", periodOrders); 
         response.put("lifetimeOrders", lifetimeOrders); 
-        response.put("lowStockCount", lowStockItems.size());
+        
+        // ✅ UPDATED: Use the correct inventory-wide count
+        response.put("lowStockCount", lowStockCount);
+        
+        // Profit Stats
         response.put("totalProfit", totalProfit);
         response.put("profitMargin", profitMargin);
         
+        // Charts Data
         response.put("topProducts", topProducts);
         response.put("categoryRevenue", categoryRevenue);
         response.put("staffPerformance", staffPerformance);
         response.put("paymentStats", paymentStats);
         response.put("hourlyTraffic", hourlyTraffic); 
         
+        // Targets & Lists
         response.put("dailyTarget", DAILY_TARGET);
         response.put("targetPercent", targetPercent);
+        response.put("topCustomers", topCustomers);
         
+        // Recent Sales List
         response.put("recentSales", sales.stream()
                 .sorted(Comparator.comparing(Sale::getDate).reversed())
                 .limit(10)

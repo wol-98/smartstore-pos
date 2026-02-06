@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Min;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "product") // ✅ FIXED: Changed "products" to "product" (Singular)
+@Table(name = "product") 
 public class Product {
     
     @Id
