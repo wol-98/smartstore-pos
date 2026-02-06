@@ -143,9 +143,17 @@
         </div>
         
         <div class="header-controls">
+            <button id="btnHome" onclick="toggleSection('dashboardSection')" class="btn-glass" title="Dashboard Home">
+                <i class="fa-solid fa-house"></i> Home
+            </button>
+
             <button id="btnSupplier" onclick="toggleSection('supplierSection')" class="btn-glass hidden" title="Manage Suppliers">
                 <i class="fa-solid fa-truck-field"></i> Suppliers
             </button>
+            <button id="btnUsers" onclick="toggleSection('userSection')" class="btn-glass hidden" title="Manage Staff">
+                <i class="fa-solid fa-users-gear"></i> Users
+            </button>
+
             <a href="/kiosk.html" target="_blank" style="text-decoration:none;">
                 <button class="btn-glass" title="Launch Kiosk Mode" style="border: 1px solid var(--primary); color: var(--primary);">
                     <i class="fa-solid fa-rocket"></i> Kiosk
@@ -204,6 +212,31 @@
         </div>
         <h3>Registered Vendors</h3>
         <table><thead><tr><th>ID</th><th>COMPANY</th><th>CONTACT</th><th>EMAIL</th><th>ACTIONS</th></tr></thead><tbody id="supplierTable"></tbody></table>
+    </div>
+
+    <div id="userSection" class="card hidden" style="margin-bottom:20px;">
+        <div class="flex-between" style="margin-bottom:20px;">
+            <h2 style="margin:0;">User Management</h2>
+            <button onclick="toggleSection('dashboardSection')" class="btn-glass" style="width:auto;">Close X</button>
+        </div>
+        <div style="background: rgba(0,0,0,0.03); padding:20px; border-radius:12px; border:1px solid var(--border); margin-bottom:20px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px;">
+                <input type="text" id="newUsername" placeholder="Username (e.g. cashier1)">
+                <input type="password" id="newPassword" placeholder="Password">
+                <select id="newRole">
+                    <option value="STAFF">Cashier (Billing Only)</option>
+                    <option value="ADMIN">Admin (Full Access)</option>
+                </select>
+            </div>
+            <button onclick="saveUser()" class="btn-primary" style="margin-top:15px; width:100%;">
+                <i class="fa-solid fa-user-plus"></i> Create User
+            </button>
+        </div>
+        <h3>Authorized Staff</h3>
+        <table>
+            <thead><tr><th>ID</th><th>USERNAME</th><th>ROLE</th><th>ACTIONS</th></tr></thead>
+            <tbody id="userTable"></tbody>
+        </table>
     </div>
 
     <div class="modal-overlay" id="feedbackModal">
@@ -497,8 +530,9 @@
                         document.getElementById('dashboardSection').classList.remove('hidden'); 
                         document.getElementById('inventorySection').classList.remove('hidden'); 
                         
-                        const btnSupplier = document.getElementById('btnSupplier');
-                        if(btnSupplier) btnSupplier.classList.remove('hidden');
+                        // Show all Admin Controls
+                        document.getElementById('btnSupplier').classList.remove('hidden');
+                        document.getElementById('btnUsers').classList.remove('hidden'); 
 
                         document.getElementById('chat-widget').style.display = 'flex';
                         
@@ -507,10 +541,10 @@
                         loadInventory(); 
                         loadFeedback(); 
                         loadSuppliers();
+                        loadUsers(); // New Function call
 
-                        // ⚡ 2. THIS IS THE FIX: Auto-Refresh every 1 min
-                        // This makes the "Total Orders" and "Live Transactions" update automatically
-                        setInterval(loadDashboard, 60000); 
+                        // ⚡ 30 Second Refresh Interval
+                        setInterval(loadDashboard, 30000); 
 
                     } else { 
                         // ... (Staff logic stays the same) ...
@@ -526,6 +560,12 @@
                         
                         const btnSupplier = document.getElementById('btnSupplier');
                         if(btnSupplier) btnSupplier.classList.add('hidden');
+                        
+                        const btnUsers = document.getElementById('btnUsers');
+                        if(btnUsers) btnUsers.classList.add('hidden');
+
+                        const btnHome = document.getElementById('btnHome');
+                        if(btnHome) btnHome.classList.add('hidden');
 
                         loadInventory(); 
                     } 
@@ -533,13 +573,17 @@
             }
 
             function toggleSection(id) { 
-                ['dashboardSection', 'inventorySection', 'supplierSection'].forEach(s => document.getElementById(s).classList.add('hidden')); 
-                document.getElementById(id).classList.remove('hidden'); 
-                if(id === 'dashboardSection' || id === 'inventorySection') { 
+                ['dashboardSection', 'inventorySection', 'supplierSection', 'userSection'].forEach(s => document.getElementById(s).classList.add('hidden')); 
+                
+                // 🛠️ FIX: Logic to handle Dashboard+Inventory pairing
+                if(id === 'dashboardSection') {
                     document.getElementById('dashboardSection').classList.remove('hidden'); 
                     document.getElementById('inventorySection').classList.remove('hidden'); 
-                } 
+                } else {
+                    document.getElementById(id).classList.remove('hidden'); 
+                }
             }
+            
             function toggleTheme() { document.body.classList.toggle('dark-mode'); localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light'); updateThemeIcon(); }
             function applySavedTheme() { if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode'); updateThemeIcon(); }
             function updateThemeIcon() { const icon = document.getElementById('themeIcon'); if (document.body.classList.contains('dark-mode')) { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); icon.style.color = "#F59E0B"; } else { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); icon.style.color = ""; } }
@@ -550,8 +594,17 @@
 
             // --- DASHBOARD ---
             function loadDashboard(){ 
-                let start = document.getElementById('filterStart').value; let end = document.getElementById('filterEnd').value;
-                if (!start || !end) { const today = new Date(); start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]; end = today.toISOString().split('T')[0]; document.getElementById('filterStart').value = start; document.getElementById('filterEnd').value = end; }
+                let start = document.getElementById('filterStart').value; 
+                let end = document.getElementById('filterEnd').value;
+                if (!start || !end) { 
+                    const today = new Date();
+                    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                    start = new Date(startOfMonth.getTime() - (startOfMonth.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    end = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]; 
+                    document.getElementById('filterStart').value = start; 
+                    document.getElementById('filterEnd').value = end; 
+                }
+                
                 fetch(`${API}/dashboard/stats?startDate=${start}&endDate=${end}&t=${new Date().getTime()}`).then(r => r.json()).then(s => { 
                     document.getElementById('statRevenue').innerText = '₹' + (s.totalRevenue || 0).toFixed(2); 
                     document.getElementById('statOrders').innerHTML = `${s.totalOrders || 0} <span style="font-size:0.5em; display:block; opacity:0.7;">Lifetime: #${s.lifetimeOrders || 0}</span>`;
@@ -560,12 +613,14 @@
                     document.getElementById('statMargin').innerText = (s.profitMargin || 0).toFixed(1) + '%';
                     const target = s.dailyTarget || 20000; const current = s.totalRevenue || 0; let percent = 0; if(target > 0) percent = Math.round((current / target) * 100); if(percent > 100) percent = 100;
                     document.getElementById('targetText').innerText = percent + "%"; document.getElementById('targetBar').style.width = percent + "%"; document.getElementById('targetValue').innerText = `₹${Math.round(current)} / ₹${target}`;
+                    
                     ['salesChart','productsChart','categoryChart','paymentChart','hourlyChart'].forEach(id => { if(chartInstances[id]) chartInstances[id].destroy(); });
                     chartInstances['salesChart'] = new Chart(document.getElementById('salesChart'), { type: 'bar', data: { labels: ['Orders', 'Alerts'], datasets: [{ label: 'Count', data: [s.totalOrders || 0, s.lowStockCount || 0], backgroundColor: ['#7e22ce', '#EF4444'], borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
                     chartInstances['productsChart'] = new Chart(document.getElementById('productsChart'), { type: 'doughnut', data: { labels: Object.keys(s.topProducts || {}), datasets: [{ data: Object.values(s.topProducts || {}), backgroundColor: ['#3b82f6', '#10B981', '#F59E0B', '#EF4444', '#8b5cf6'], borderWidth: 2, borderColor: 'transparent' }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } } });
                     const hours = s.hourlyTraffic || {}; chartInstances['hourlyChart'] = new Chart(document.getElementById('hourlyChart'), { type: 'line', data: { labels: Object.keys(hours).map(h=>h+":00"), datasets: [{ label: 'Visitors', data: Object.values(hours), borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
                     chartInstances['categoryChart'] = new Chart(document.getElementById('categoryChart'), { type: 'bar', data: { labels: Object.keys(s.categoryRevenue || {}), datasets: [{ label: 'Revenue', data: Object.values(s.categoryRevenue || {}), backgroundColor: '#10B981', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } } });
                     const payStats = s.paymentStats || { "CASH": 0 }; chartInstances['paymentChart'] = new Chart(document.getElementById('paymentChart'), { type: 'pie', data: { labels: Object.keys(payStats), datasets: [{ data: Object.values(payStats), backgroundColor: ['#F59E0B', '#10B981', '#6366F1'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } } } });
+                    
                     document.getElementById('transactionTable').innerHTML = (s.recentSales || []).map(t => `<tr><td><small>${t.date.split('T')[1].substring(0,5)}</small></td><td>${t.cashierName||'-'}</td><td style="text-align:right;">₹${t.totalAmount}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center;">No recent sales</td></tr>';
                     document.getElementById('staffList').innerHTML = Object.entries(s.staffPerformance || {}).map(([name, amt]) => `<div class="flex-between" style="margin-bottom:5px; padding:5px; border-bottom:1px solid rgba(0,0,0,0.05);"><span>👤 ${name}</span><b style="color:var(--primary);">₹${amt}</b></div>`).join('');
                     document.getElementById('vipTable').innerHTML = (s.topCustomers || []).map((c, i) => `<tr><td style="padding:10px;"><b>${i + 1}. ${c.name}</b><br><small>${c.phone}</small></td><td style="text-align:right; color:#7e22ce;"><b>★ ${c.points}</b></td></tr>`).join('');
@@ -573,11 +628,30 @@
                 fetch(`${API}/dashboard/stats/ai`).then(r => r.json()).then(ai => { document.getElementById('statPrediction').innerText = (ai.predictedSales || 0) + " Units"; });
             }
 
-            function loadInventory(){ fetch(`${API}/products`).then(r => r.json()).then(d => { products = d; requestAnimationFrame(() => renderCatalog()); if(!document.getElementById('inventorySection').classList.contains('hidden')){ setTimeout(renderInv, 50); } }); }
-            
+            // --- DATA LOADERS ---
+            function loadInventory(){ 
+                fetch(`${API}/products`)
+                .then(r => r.json())
+                .then(d => { 
+                    products = d; 
+                    // Update POS Grid (For Staff)
+                    requestAnimationFrame(() => renderCatalog()); 
+                    // Update Inventory Table (For Admin) - NO CONDITION CHECK
+                    setTimeout(renderInv, 50); 
+                }); 
+            }
+
             function renderCatalog(){ 
                 const t = document.getElementById('posSearch').value.toLowerCase(); 
-                document.getElementById('productGrid').innerHTML = products.filter(p => (p.name && p.name.toLowerCase().includes(t)) || String(p.id).includes(t)).map(p => { 
+                const grid = document.getElementById('productGrid');
+                const filtered = products.filter(p => (p.name && p.name.toLowerCase().includes(t)) || String(p.id).includes(t));
+                
+                if(filtered.length === 0) {
+                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; color:var(--text-muted);">No products found. Add some in Inventory!</div>';
+                    return;
+                }
+
+                grid.innerHTML = filtered.map(p => { 
                     let validStock = (p.stock === null || p.stock === undefined) ? 0 : p.stock; 
                     let validBrand = (p.brand && p.brand !== 'null') ? p.brand : ''; 
                     let c = 'product-card'; 
@@ -617,6 +691,138 @@
                 } 
             }
 
+            function loadSuppliers() { fetch(`${API}/suppliers`).then(r => r.json()).then(d => { const t = document.getElementById('supplierTable'); t.innerHTML = d.map(s => `<tr><td>#${s.id}</td><td><b>${s.name}</b></td><td>${s.contactPerson||'-'}</td><td>${s.email||'-'}</td><td><button onclick="deleteSupplier(${s.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;">Delete</button></td></tr>`).join(''); const sel = document.getElementById('prodSupplier'); sel.innerHTML = '<option value="">-- Select Supplier --</option>' + d.map(s => `<option value="${s.id}">${s.name}</option>`).join(''); }); }
+            function saveSupplier() { const data = { name: document.getElementById('suppName').value, contactPerson: document.getElementById('suppContact').value, email: document.getElementById('suppEmail').value, phone: document.getElementById('suppPhone').value, address: document.getElementById('suppAddress').value }; if(!data.name) return alert("Company Name is required"); fetch(`${API}/suppliers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => { alert("Supplier Saved!"); document.querySelectorAll('#supplierSection input').forEach(i => i.value = ''); loadSuppliers(); }); }
+            function deleteSupplier(id) { if(confirm("Delete this supplier?")) { fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }).then(loadSuppliers); } }
+            
+            // --- 👤 NEW: USER MANAGEMENT JS ---
+            function loadUsers() {
+                fetch(`${API}/users`).then(r => r.json()).then(data => {
+                    const t = document.getElementById('userTable');
+                    t.innerHTML = data.map(u => `
+                        <tr>
+                            <td>#${u.id}</td>
+                            <td><b>${u.username}</b></td>
+                            <td><span style="padding:3px 8px; border-radius:10px; background:${u.role==='ADMIN'?'#e0e7ff':'#ecfdf5'}; color:${u.role==='ADMIN'?'#4338ca':'#047857'}; font-size:0.8em; font-weight:bold;">${u.role}</span></td>
+                            <td>
+                                ${u.username !== 'Raphael' ? `<button onclick="deleteUser(${u.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;">Delete</button>` : '<small>Protected</small>'}
+                            </td>
+                        </tr>
+                    `).join('');
+                });
+            }
+
+            function saveUser() {
+                const u = document.getElementById('newUsername').value;
+                const p = document.getElementById('newPassword').value;
+                const r = document.getElementById('newRole').value;
+
+                if (!u || !p) return alert("Username and Password are required!");
+
+                fetch(`${API}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p, role: r })
+                })
+                .then(async res => {
+                    if (res.ok) {
+                        alert("User Created Successfully!");
+                        document.getElementById('newUsername').value = '';
+                        document.getElementById('newPassword').value = '';
+                        loadUsers();
+                    } else {
+                        const txt = await res.text();
+                        alert("Error: " + txt); // Likely "Username already exists"
+                    }
+                })
+                .catch(e => alert("Network Error"));
+            }
+
+            function deleteUser(id) {
+                if(confirm("Are you sure you want to delete this user? They will lose access immediately.")) {
+                    fetch(`${API}/users/${id}`, { method: 'DELETE' }).then(loadUsers);
+                }
+            }
+
+            // --- FEEDBACK & OTHER ---
+            function loadFeedback() { fetch(`${API}/feedback`).then(r => r.json()).then(data => { const t = document.getElementById('feedbackTable'); if(!data.length) { t.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:10px;">No messages.</td></tr>'; return; } t.innerHTML = data.map(f => { let action = ''; if(f.status === 'RESOLVED' || f.status.includes('APPROVED')) action = '<span style="color:green; font-weight:bold;">✔ Done</span>'; else if(f.category === 'Stock' && f.linkedProductId) action = `<button onclick="approveStock(${f.id})" class="btn-sm" style="background:#10B981; color:white;">+10 Stock</button>`; else action = `<button onclick="resolveFeedback(${f.id})" class="btn-sm" style="background:#3b82f6; color:white;">Resolve</button>`; return `<tr><td style="padding:8px;"><small>${f.submittedAt.split('T')[0]}</small><br><b>${f.username}</b></td><td style="padding:8px;"><b>${f.category}</b><br>${f.message}</td><td style="padding:8px; text-align:right;">${action}</td></tr>`; }).join(''); }); }
+            function resolveFeedback(id) { fetch(`${API}/feedback/${id}/resolve`, {method:'PUT'}).then(loadFeedback); }
+            function approveStock(id) { fetch(`${API}/feedback/${id}/approve-stock`, {method:'PUT'}).then(() => { alert("Stock Added!"); loadFeedback(); loadInventory(); }); }
+            
+            function saveProduct() { 
+                const id = document.getElementById('prodId').value; 
+                const payload = { 
+                    name: document.getElementById('prodName').value, 
+                    brand: document.getElementById('prodBrand').value, 
+                    category: document.getElementById('prodCategory').value, 
+                    buyingPrice: parseFloat(document.getElementById('prodBuyingPrice').value), 
+                    sellingPrice: parseFloat(document.getElementById('prodSellingPrice').value), 
+                    supplierId: document.getElementById('prodSupplier').value || null, 
+                    stock: parseInt(document.getElementById('prodStock').value) 
+                }; 
+                if (id) payload.id = id; 
+                fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); }); 
+            }
+
+            function deleteProduct(id) { const row = document.querySelector(`tr[data-id="${id}"]`); if (row) { row.style.opacity = '0.3'; row.style.pointerEvents = 'none'; } productToDelete = id; document.getElementById('undoToast').className = "show"; deleteTimeout = setTimeout(() => { fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory); document.getElementById('undoToast').className = ""; }, 4000); }
+            function undoDelete() { clearTimeout(deleteTimeout); const row = document.querySelector(`tr[data-id="${productToDelete}"]`); if (row) { row.style.opacity = '1'; row.style.pointerEvents = 'auto'; } document.getElementById('undoToast').className = ""; }
+            
+            function editProduct(id) { 
+                const p = products.find(x => x.id === id); 
+                document.getElementById('prodId').value = p.id; 
+                document.getElementById('prodName').value = p.name; 
+                document.getElementById('prodBrand').value = p.brand; 
+                document.getElementById('prodCategory').value = p.category; 
+                document.getElementById('prodBuyingPrice').value = p.buyingPrice; 
+                document.getElementById('prodSellingPrice').value = p.sellingPrice; 
+                document.getElementById('prodStock').value = p.stock; 
+                document.getElementById('prodSupplier').value = p.supplierId || ""; 
+                document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Product'; 
+                document.getElementById('cancelBtn').classList.remove('hidden'); 
+                
+                document.getElementById('inventorySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            function resetForm() { document.querySelectorAll('#inventorySection input').forEach(i => i.value=''); document.getElementById('prodId').value = ''; document.getElementById('prodSupplier').value = ''; document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Add to Inventory'; document.getElementById('cancelBtn').classList.add('hidden'); }
+            function toggleScanner(){ const r=document.getElementById('reader'); if(r.style.display==='none'){ r.style.display='block'; html5QrcodeScanner=new Html5QrcodeScanner("reader",{fps:10,qrbox:250}); html5QrcodeScanner.render(t=>{ let p=products.find(x=>x.name.toLowerCase()===t.toLowerCase()||x.id==t); if(p){ addToCart({id:p.id}); html5QrcodeScanner.pause(); setTimeout(()=>html5QrcodeScanner.resume(),1500); } }); } else { if(html5QrcodeScanner) html5QrcodeScanner.clear(); r.style.display='none'; } }
+            function uploadExcel(input) { const fd=new FormData(); fd.append("file", input.files[0]); fetch(`${API}/products/upload`,{method:'POST',body:fd}).then(r=>r.text()).then(m=>{ alert(m); loadInventory(); }); }
+            function downloadExcel() { window.location.href = `${API}/sales/export`; }
+            function downloadReceipt(){ window.open(`/api/sales/${lastSaleId}/pdf`); }
+
+            function shareReceipt(event){ 
+                const e = document.getElementById('shareEmail').value; 
+                if (!e) return alert("Enter email."); 
+
+                const btn = event.currentTarget; 
+                const originalContent = btn.innerHTML; 
+
+                btn.disabled = true; 
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
+                
+                fetch(`${API}/sales/${lastSaleId}/share?email=${encodeURIComponent(e)}`, { method: 'POST' })
+                    .then(r => {
+                        if (r.ok) {
+                            btn.style.background = '#10B981'; 
+                            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                            setTimeout(() => {
+                               btn.style.background = 'var(--primary)'; 
+                               btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+                               btn.disabled = false;
+                            }, 3000);
+                        } else {
+                            alert("Failed to send email.");
+                            btn.disabled = false;
+                            btn.innerHTML = originalContent;
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                        alert("Network error.");
+                    });
+            }
+            
             function addToCart(o){ 
                 playBeep(); 
                 let p = products.find(x => x.id === o.id); 
@@ -778,87 +984,6 @@
                 togglePaymentInterface();
             }
 
-            function loadSuppliers() { fetch(`${API}/suppliers`).then(r => r.json()).then(d => { const t = document.getElementById('supplierTable'); t.innerHTML = d.map(s => `<tr><td>#${s.id}</td><td><b>${s.name}</b></td><td>${s.contactPerson||'-'}</td><td>${s.email||'-'}</td><td><button onclick="deleteSupplier(${s.id})" style="background:#ef4444; width:auto; padding:5px 10px; font-size:0.8em;">Delete</button></td></tr>`).join(''); const sel = document.getElementById('prodSupplier'); sel.innerHTML = '<option value="">-- Select Supplier --</option>' + d.map(s => `<option value="${s.id}">${s.name}</option>`).join(''); }); }
-            function saveSupplier() { const data = { name: document.getElementById('suppName').value, contactPerson: document.getElementById('suppContact').value, email: document.getElementById('suppEmail').value, phone: document.getElementById('suppPhone').value, address: document.getElementById('suppAddress').value }; if(!data.name) return alert("Company Name is required"); fetch(`${API}/suppliers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => { alert("Supplier Saved!"); document.querySelectorAll('#supplierSection input').forEach(i => i.value = ''); loadSuppliers(); }); }
-            function deleteSupplier(id) { if(confirm("Delete this supplier?")) { fetch(`${API}/suppliers/${id}`, { method: 'DELETE' }).then(loadSuppliers); } }
-            function loadFeedback() { fetch(`${API}/feedback`).then(r => r.json()).then(data => { const t = document.getElementById('feedbackTable'); if(!data.length) { t.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:10px;">No messages.</td></tr>'; return; } t.innerHTML = data.map(f => { let action = ''; if(f.status === 'RESOLVED' || f.status.includes('APPROVED')) action = '<span style="color:green; font-weight:bold;">✔ Done</span>'; else if(f.category === 'Stock' && f.linkedProductId) action = `<button onclick="approveStock(${f.id})" class="btn-sm" style="background:#10B981; color:white;">+10 Stock</button>`; else action = `<button onclick="resolveFeedback(${f.id})" class="btn-sm" style="background:#3b82f6; color:white;">Resolve</button>`; return `<tr><td style="padding:8px;"><small>${f.submittedAt.split('T')[0]}</small><br><b>${f.username}</b></td><td style="padding:8px;"><b>${f.category}</b><br>${f.message}</td><td style="padding:8px; text-align:right;">${action}</td></tr>`; }).join(''); }); }
-            function resolveFeedback(id) { fetch(`${API}/feedback/${id}/resolve`, {method:'PUT'}).then(loadFeedback); }
-            function approveStock(id) { fetch(`${API}/feedback/${id}/approve-stock`, {method:'PUT'}).then(() => { alert("Stock Added!"); loadFeedback(); loadInventory(); }); }
-            
-            function saveProduct() { 
-                const id = document.getElementById('prodId').value; 
-                const payload = { 
-                    name: document.getElementById('prodName').value, 
-                    brand: document.getElementById('prodBrand').value, 
-                    category: document.getElementById('prodCategory').value, 
-                    buyingPrice: parseFloat(document.getElementById('prodBuyingPrice').value), 
-                    sellingPrice: parseFloat(document.getElementById('prodSellingPrice').value), 
-                    supplierId: document.getElementById('prodSupplier').value || null, 
-                    stock: parseInt(document.getElementById('prodStock').value) 
-                }; 
-                if (id) payload.id = id; 
-                fetch(`${API}/products`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(() => { resetForm(); loadInventory(); }); 
-            }
-
-            function deleteProduct(id) { const row = document.querySelector(`tr[data-id="${id}"]`); if (row) { row.style.opacity = '0.3'; row.style.pointerEvents = 'none'; } productToDelete = id; document.getElementById('undoToast').className = "show"; deleteTimeout = setTimeout(() => { fetch(`${API}/products/${id}`,{method:'DELETE'}).then(loadInventory); document.getElementById('undoToast').className = ""; }, 4000); }
-            function undoDelete() { clearTimeout(deleteTimeout); const row = document.querySelector(`tr[data-id="${productToDelete}"]`); if (row) { row.style.opacity = '1'; row.style.pointerEvents = 'auto'; } document.getElementById('undoToast').className = ""; }
-            
-            function editProduct(id) { 
-                const p = products.find(x => x.id === id); 
-                document.getElementById('prodId').value = p.id; 
-                document.getElementById('prodName').value = p.name; 
-                document.getElementById('prodBrand').value = p.brand; 
-                document.getElementById('prodCategory').value = p.category; 
-                document.getElementById('prodBuyingPrice').value = p.buyingPrice; 
-                document.getElementById('prodSellingPrice').value = p.sellingPrice; 
-                document.getElementById('prodStock').value = p.stock; 
-                document.getElementById('prodSupplier').value = p.supplierId || ""; 
-                document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-check"></i> Update Product'; 
-                document.getElementById('cancelBtn').classList.remove('hidden'); 
-                
-                document.getElementById('inventorySection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-
-            function resetForm() { document.querySelectorAll('#inventorySection input').forEach(i => i.value=''); document.getElementById('prodId').value = ''; document.getElementById('prodSupplier').value = ''; document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Add to Inventory'; document.getElementById('cancelBtn').classList.add('hidden'); }
-            function toggleScanner(){ const r=document.getElementById('reader'); if(r.style.display==='none'){ r.style.display='block'; html5QrcodeScanner=new Html5QrcodeScanner("reader",{fps:10,qrbox:250}); html5QrcodeScanner.render(t=>{ let p=products.find(x=>x.name.toLowerCase()===t.toLowerCase()||x.id==t); if(p){ addToCart({id:p.id}); html5QrcodeScanner.pause(); setTimeout(()=>html5QrcodeScanner.resume(),1500); } }); } else { if(html5QrcodeScanner) html5QrcodeScanner.clear(); r.style.display='none'; } }
-            function uploadExcel(input) { const fd=new FormData(); fd.append("file", input.files[0]); fetch(`${API}/products/upload`,{method:'POST',body:fd}).then(r=>r.text()).then(m=>{ alert(m); loadInventory(); }); }
-            function downloadExcel() { window.location.href = `${API}/sales/export`; }
-            function downloadReceipt(){ window.open(`/api/sales/${lastSaleId}/pdf`); }
-
-            function shareReceipt(event){ 
-                const e = document.getElementById('shareEmail').value; 
-                if (!e) return alert("Enter email."); 
-
-                const btn = event.currentTarget; 
-                const originalContent = btn.innerHTML; 
-
-                btn.disabled = true; 
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; 
-                
-                fetch(`${API}/sales/${lastSaleId}/share?email=${encodeURIComponent(e)}`, { method: 'POST' })
-                    .then(r => {
-                        if (r.ok) {
-                            btn.style.background = '#10B981'; 
-                            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
-                            setTimeout(() => {
-                               btn.style.background = 'var(--primary)'; 
-                               btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-                               btn.disabled = false;
-                            }, 3000);
-                        } else {
-                            alert("Failed to send email.");
-                            btn.disabled = false;
-                            btn.innerHTML = originalContent;
-                        }
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        btn.disabled = false;
-                        btn.innerHTML = originalContent;
-                        alert("Network error.");
-                    });
-            }
-            
             function printThermal() {
                 if (!lastReceiptData) { alert("No receipt data found!"); return; }
 
